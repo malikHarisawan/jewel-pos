@@ -10,7 +10,13 @@ import {
   listBalances,
 } from '../services/stockService.js';
 import { enterRate, latestRates, rateHistory, quoteItems, quoteWeight } from '../services/rateService.js';
-import { checkout, getInvoice, listInvoices } from '../services/invoiceService.js';
+import {
+  checkout,
+  getInvoice,
+  listInvoices,
+  getReturnableLines,
+  returnSale,
+} from '../services/invoiceService.js';
 import { getSettings, updateSettings } from '../services/settingsService.js';
 import { getSummary } from '../services/dashboardService.js';
 import { createParty, listParties } from '../services/partyService.js';
@@ -147,6 +153,17 @@ export const handlers: Handlers = {
 
   'sales.getInvoice': (ctx, input) => getInvoice(ctx.db, input.id),
   'sales.list': (ctx, input) => listInvoices(ctx.db, input),
+  'sales.returnableLines': (ctx, input) => getReturnableLines(ctx.db, input.documentId),
+  'sales.return': (ctx, input) => {
+    const session = ctx.auth.requireSession();
+    return returnSale(ctx.db, session.userId, {
+      documentId: input.documentId,
+      dateISO: new Date().toISOString(),
+      lines: input.lines,
+      refundMethod: input.refundMethod,
+      reason: input.reason ?? null,
+    });
+  },
 
   'parties.list': (ctx, input) => listParties(ctx.db, input),
   'parties.create': (ctx, input) => {

@@ -20,6 +20,9 @@ export type AuditAction =
   | 'LOGIN'
   | 'OVERRIDE'
   | 'FINALIZE'
+  /** Goods given back against a finalised sale. Distinct from FINALIZE so the
+   * trail shows plainly that money left the till. */
+  | 'RETURN'
   | 'REBUILD';
 
 export interface AuditEntry {

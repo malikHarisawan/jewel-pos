@@ -295,5 +295,21 @@
   "sales.col.customer": "Customer",
   "sales.col.items": "Items",
   "sales.col.cashier": "Sold by",
-  "sales.col.total": "Total"
+  "sales.col.total": "Total",
+  "sales.return": "Return",
+  "returns.title": "Return against",
+  "returns.priceNote": "The customer gets back what they paid on each line, not today's rate. Enter the weight coming back.",
+  "returns.col.item": "Item",
+  "returns.col.sold": "Sold",
+  "returns.col.alreadyBack": "Already back",
+  "returns.col.giveBack": "Giving back (g)",
+  "returns.col.refund": "Refund",
+  "returns.allOfIt": "All",
+  "returns.allBack": "Fully returned",
+  "returns.refundVia": "Refund by",
+  "returns.reason": "Reason",
+  "returns.reasonPh": "Wrong size, changed mind…",
+  "returns.totalRefund": "Total refund",
+  "returns.confirm": "Take it back",
+  "returns.done": "Return {{no}} recorded"
 }

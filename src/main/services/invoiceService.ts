@@ -90,15 +90,37 @@ function lockedRate(db: DB, documentId: number, purityId: number): RateSnapshot 
   return { purityId, metalRateId: row.metal_rate_id, ratePaisaPerGram: row.rate_paisa_per_gram };
 }
 
-/** Atomically issue and format the next document number for a fiscal year. */
+/** Prefix a doc type bills under, e.g. INV-2026-0001. */
+const DOC_PREFIX: Record<string, string> = {
+  SALE_INVOICE: 'INV',
+  PURCHASE: 'PUR',
+  SALE_RETURN: 'RET',
+};
+
+/**
+ * Atomically issue and format the next document number for a fiscal year.
+ *
+ * Sequences are per (type, year). A year with no row would otherwise make every
+ * sale fail on 1 January — a shop cannot bill at all until someone ships a
+ * migration. So a missing year is created on demand, starting at 1.
+ */
 function issueDocNumber(db: DB, docType: string, fiscalYear: number): string {
-  const seq = db
-    .prepare(
-      `UPDATE doc_sequences SET next_no = next_no + 1
-       WHERE doc_type=? AND fiscal_year=? RETURNING next_no - 1 AS n, prefix`,
-    )
-    .get(docType, fiscalYear) as { n: number; prefix: string } | undefined;
-  if (!seq) throw new Error(`no sequence for ${docType} ${fiscalYear}`);
+  const bump = db.prepare(
+    `UPDATE doc_sequences SET next_no = next_no + 1
+     WHERE doc_type=? AND fiscal_year=? RETURNING next_no - 1 AS n, prefix`,
+  );
+
+  let seq = bump.get(docType, fiscalYear) as { n: number; prefix: string } | undefined;
+  if (!seq) {
+    const prefix = DOC_PREFIX[docType];
+    if (!prefix) throw new Error(`no sequence for ${docType} ${fiscalYear}`);
+    db.prepare(
+      `INSERT INTO doc_sequences (doc_type, fiscal_year, next_no, prefix) VALUES (?,?,1,?)
+       ON CONFLICT(doc_type, fiscal_year) DO NOTHING`,
+    ).run(docType, fiscalYear, prefix);
+    seq = bump.get(docType, fiscalYear) as { n: number; prefix: string } | undefined;
+    if (!seq) throw new Error(`no sequence for ${docType} ${fiscalYear}`);
+  }
   return `${seq.prefix}-${fiscalYear}-${String(seq.n).padStart(4, '0')}`;
 }
 
@@ -324,6 +346,270 @@ export function getInvoice(db: DB, id: number) {
     saleAdjustmentPaisa: (doc.sale_adjustment_paisa as number) ?? 0,
     grandTotalPaisa: doc.grand_total_paisa as number,
   };
+}
+
+/** One returnable line of an existing sale, with how much of it is still open. */
+export interface ReturnableLine {
+  lineId: number;
+  lineNo: number;
+  itemId: number | null;
+  description: string;
+  lineKind: 'ITEM' | 'LOT_WEIGHT' | 'OLD_GOLD_EXCHANGE' | 'RETURN';
+  pieces: number;
+  netMg: number;
+  grossMg: number;
+  lineTotalPaisa: number;
+  /** Already given back on earlier returns. */
+  returnedPieces: number;
+  returnedNetMg: number;
+  /** Still returnable. */
+  remainingPieces: number;
+  remainingNetMg: number;
+}
+
+/**
+ * What can still be given back on a sale.
+ *
+ * Old-gold lines are excluded: the customer sold that metal to the shop, so it
+ * is not the shop's to hand back. Quantities already returned on earlier partial
+ * returns are subtracted, which is what stops the same ring coming back twice.
+ */
+export function getReturnableLines(db: DB, documentId: number): ReturnableLine[] {
+  const doc = db.prepare('SELECT doc_type, status FROM documents WHERE id=?').get(documentId) as
+    | { doc_type: string; status: string }
+    | undefined;
+  if (!doc) throw new Error(`invoice ${documentId} not found`);
+  if (doc.doc_type !== 'SALE_INVOICE') throw new Error('only a sale invoice can be returned');
+
+  const rows = db
+    .prepare(
+      `SELECT l.id, l.line_no, l.item_id, l.description, l.line_kind, l.pieces,
+              l.net_mg, l.gross_mg, l.line_total_paisa,
+              COALESCE((SELECT SUM(r.pieces) FROM document_lines r
+                        JOIN documents rd ON rd.id = r.document_id
+                        WHERE r.returns_line_id = l.id AND rd.status='FINAL'), 0) AS ret_pieces,
+              COALESCE((SELECT SUM(r.net_mg) FROM document_lines r
+                        JOIN documents rd ON rd.id = r.document_id
+                        WHERE r.returns_line_id = l.id AND rd.status='FINAL'), 0) AS ret_net_mg
+       FROM document_lines l
+       WHERE l.document_id=? AND l.line_kind != 'OLD_GOLD_EXCHANGE'
+       ORDER BY l.line_no`,
+    )
+    .all(documentId) as Array<{
+    id: number;
+    line_no: number;
+    item_id: number | null;
+    description: string;
+    line_kind: string;
+    pieces: number;
+    net_mg: number;
+    gross_mg: number;
+    line_total_paisa: number;
+    ret_pieces: number;
+    ret_net_mg: number;
+  }>;
+
+  return rows.map((r) => ({
+    lineId: r.id,
+    lineNo: r.line_no,
+    itemId: r.item_id,
+    description: r.description,
+    lineKind: r.line_kind as ReturnableLine['lineKind'],
+    pieces: r.pieces,
+    netMg: r.net_mg,
+    grossMg: r.gross_mg,
+    lineTotalPaisa: r.line_total_paisa,
+    returnedPieces: r.ret_pieces,
+    returnedNetMg: r.ret_net_mg,
+    remainingPieces: r.pieces - r.ret_pieces,
+    remainingNetMg: r.net_mg - r.ret_net_mg,
+  }));
+}
+
+export interface ReturnLineInput {
+  /** The original sale line being given back. */
+  lineId: number;
+  /** Pieces returned (an ITEM line is always 1). */
+  pieces: number;
+  /** Weight returned; for an ITEM line this is the whole line. */
+  netMg: number;
+}
+
+export interface ReturnSaleInput {
+  documentId: number;
+  dateISO: string;
+  lines: ReturnLineInput[];
+  /** How the money goes back. Defaults to cash. */
+  refundMethod?: PaymentMethod;
+  reason?: string | null;
+}
+
+/**
+ * Take goods back against a finalised sale.
+ *
+ * Money is refunded at the ORIGINAL line's price, never at today's rate — gold
+ * moves daily, and re-pricing a return would rob either the customer or the
+ * shop depending on which way the market went. The refund is therefore a
+ * proportion of what was actually charged on that line.
+ *
+ * Stock comes back through the ledger as SALE_RETURN_IN (the one movement the
+ * sold-item trigger admits), and the refund is written as a NEGATIVE payment so
+ * the day's cash reconciles. The original invoice is never touched: it is
+ * immutable by trigger, and the return is its own document pointing back at it.
+ */
+export function returnSale(db: DB, userId: number, input: ReturnSaleInput): FinalizeResult {
+  return withAudit(db, userId, (audit) => {
+    if (input.lines.length === 0) throw new Error('a return needs at least one line');
+
+    const original = db
+      .prepare('SELECT id, doc_type, status, party_id FROM documents WHERE id=?')
+      .get(input.documentId) as
+      | { id: number; doc_type: string; status: string; party_id: number | null }
+      | undefined;
+    if (!original) throw new Error(`invoice ${input.documentId} not found`);
+    if (original.doc_type !== 'SALE_INVOICE') throw new Error('only a sale invoice can be returned');
+    if (original.status !== 'FINAL') throw new Error('only a finalised sale can be returned');
+
+    const returnable = new Map(getReturnableLines(db, input.documentId).map((l) => [l.lineId, l]));
+
+    const fiscalYear = Number(input.dateISO.slice(0, 4));
+    const docNumber = issueDocNumber(db, 'SALE_RETURN', fiscalYear);
+    const docInfo = db
+      .prepare(
+        `INSERT INTO documents (doc_type, status, party_id, doc_date, created_by,
+                                returns_document_id, notes)
+         VALUES ('SALE_RETURN','DRAFT',?,?,?,?,?)`,
+      )
+      .run(original.party_id, input.dateISO, userId, input.documentId, input.reason ?? null);
+    const returnDocId = Number(docInfo.lastInsertRowid);
+
+    const insertLine = db.prepare(
+      `INSERT INTO document_lines
+        (document_id, line_no, line_kind, item_id, description, pieces, gross_mg, less_mg, net_mg,
+         purity_id, metal_rate_id, rate_paisa_per_gram, metal_value_paisa,
+         making_rate_paisa, making_value_paisa, wastage_bp, wastage_value_paisa,
+         stone_value_paisa, hallmark_charge_paisa, discount_paisa, tax_bp, taxable_base_paisa,
+         tax_paisa, line_total_paisa, returns_line_id)
+       VALUES
+        (@document_id, @line_no, 'RETURN', @item_id, @description, @pieces, @gross_mg, @less_mg,
+         @net_mg, @purity_id, @metal_rate_id, @rate_paisa_per_gram, @metal_value_paisa,
+         0, @making_value_paisa, 0, @wastage_value_paisa,
+         @stone_value_paisa, @hallmark_charge_paisa, 0, 0, 0,
+         @tax_paisa, @line_total_paisa, @returns_line_id)
+       RETURNING id`,
+    );
+
+    let lineNo = 0;
+    let refundPaisa = 0;
+
+    for (const r of input.lines) {
+      const orig = returnable.get(r.lineId);
+      if (!orig) throw new Error(`line ${r.lineId} is not part of invoice ${input.documentId}`);
+      if (r.pieces <= 0 || r.netMg <= 0) {
+        throw new Error('a return line must be a positive quantity');
+      }
+      if (r.pieces > orig.remainingPieces) {
+        throw new Error(
+          `cannot return ${r.pieces} of "${orig.description}" — only ${orig.remainingPieces} left`,
+        );
+      }
+      if (r.netMg > orig.remainingNetMg) {
+        throw new Error(`cannot return that weight of "${orig.description}" — more than was sold`);
+      }
+
+      // Refund the same share of the line that is coming back. A full return
+      // gives back exactly what the line charged, with no rounding drift.
+      const isFull = r.netMg === orig.netMg && r.pieces === orig.pieces;
+      const share = isFull
+        ? orig.lineTotalPaisa
+        : Math.round((orig.lineTotalPaisa * r.netMg) / orig.netMg);
+      refundPaisa += share;
+
+      // Weight scales with what came back, so a partial return of a lot restores
+      // the right amount of metal.
+      const grossMg = isFull ? orig.grossMg : Math.round((orig.grossMg * r.netMg) / orig.netMg);
+
+      const src = db
+        .prepare(
+          `SELECT purity_id, metal_rate_id, rate_paisa_per_gram, metal_value_paisa,
+                  making_value_paisa, wastage_value_paisa, stone_value_paisa,
+                  hallmark_charge_paisa, tax_paisa
+           FROM document_lines WHERE id=?`,
+        )
+        .get(r.lineId) as Record<string, number | null>;
+
+      // A return line mirrors the sale line, so every money column is negated.
+      const scale = (v: number | null): number =>
+        v == null ? 0 : isFull ? -v : -Math.round((v * r.netMg) / orig.netMg);
+
+      const lineRow = insertLine.get({
+        document_id: returnDocId,
+        line_no: ++lineNo,
+        item_id: orig.itemId,
+        description: `Return: ${orig.description}`,
+        pieces: r.pieces,
+        gross_mg: grossMg,
+        less_mg: grossMg - r.netMg,
+        net_mg: r.netMg,
+        purity_id: src.purity_id,
+        metal_rate_id: src.metal_rate_id,
+        rate_paisa_per_gram: src.rate_paisa_per_gram ?? 0,
+        metal_value_paisa: scale(src.metal_value_paisa),
+        making_value_paisa: scale(src.making_value_paisa),
+        wastage_value_paisa: scale(src.wastage_value_paisa),
+        stone_value_paisa: scale(src.stone_value_paisa),
+        hallmark_charge_paisa: scale(src.hallmark_charge_paisa),
+        tax_paisa: scale(src.tax_paisa),
+        line_total_paisa: -share,
+        returns_line_id: r.lineId,
+      }) as { id: number };
+
+      // Stock back in. SALE_RETURN_IN is the only movement the sold-item guard
+      // admits, which is exactly what it was put there for.
+      if (orig.itemId != null) {
+        insertMovement(
+          db,
+          userId,
+          {
+            movementType: 'SALE_RETURN_IN',
+            itemId: orig.itemId,
+            locationId: getItemLocation(db, orig.itemId),
+            piecesDelta: r.pieces,
+            grossMgDelta: grossMg,
+            netMgDelta: r.netMg,
+            documentId: returnDocId,
+            documentLineId: lineRow.id,
+          },
+          audit,
+        );
+        // A unique piece is back on the shelf and sellable again.
+        if (orig.lineKind === 'ITEM') {
+          db.prepare("UPDATE items SET status='IN_STOCK' WHERE id=?").run(orig.itemId);
+        }
+      }
+    }
+
+    // The refund is a negative payment, so the day's takings net out.
+    db.prepare(
+      `INSERT INTO payments (document_id, method, amount_paisa, received_by) VALUES (?,?,?,?)`,
+    ).run(returnDocId, input.refundMethod ?? 'CASH', -refundPaisa, userId);
+
+    db.prepare(
+      `UPDATE documents SET
+         doc_number=@doc_number, status='FINAL', grand_total_paisa=@grand,
+         finalized_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'), finalized_by=@user
+       WHERE id=@id`,
+    ).run({ id: returnDocId, doc_number: docNumber, grand: -refundPaisa, user: userId });
+
+    audit.record({
+      table: 'documents',
+      rowPk: returnDocId,
+      action: 'RETURN',
+      changes: { docNumber, returnsDocumentId: input.documentId, refundPaisa },
+    });
+
+    return { documentId: returnDocId, docNumber, grandTotalPaisa: -refundPaisa };
+  });
 }
 
 export function checkout(db: DB, userId: number, input: CheckoutInput): FinalizeResult {

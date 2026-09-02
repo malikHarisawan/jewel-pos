@@ -478,6 +478,46 @@ export const ListInvoicesInput = z.object({
 });
 export const ListInvoicesOutput = z.array(InvoiceListRowDTO);
 
+// ---- sale returns ---------------------------------------------------------
+
+export const ReturnableLineDTO = z.object({
+  lineId: z.number().int(),
+  lineNo: z.number().int(),
+  itemId: z.number().int().nullable(),
+  description: z.string(),
+  lineKind: z.enum(LINE_KINDS),
+  pieces: z.number().int(),
+  netMg: z.number().int(),
+  grossMg: z.number().int(),
+  lineTotalPaisa: z.number().int(),
+  returnedPieces: z.number().int(),
+  returnedNetMg: z.number().int(),
+  remainingPieces: z.number().int(),
+  remainingNetMg: z.number().int(),
+});
+export const ReturnableLinesInput = z.object({ documentId: z.number().int() });
+export const ReturnableLinesOutput = z.array(ReturnableLineDTO);
+
+export const ReturnSaleInput = z.object({
+  documentId: z.number().int(),
+  lines: z
+    .array(
+      z.object({
+        lineId: z.number().int(),
+        pieces: z.number().int().positive(),
+        netMg: z.number().int().positive(),
+      }),
+    )
+    .min(1),
+  refundMethod: z.enum(['CASH', 'BANK', 'CARD', 'CREDIT']).optional(),
+  reason: z.string().nullable().optional(),
+});
+export const ReturnSaleOutput = z.object({
+  documentId: z.number().int(),
+  docNumber: z.string(),
+  grandTotalPaisa: z.number().int(),
+});
+
 // ---- parties (customers / suppliers / karigars) ---------------------------
 
 export const PartyKindSchema = z.enum(PARTY_KINDS);
@@ -740,6 +780,18 @@ export const contract = {
   'sales.list': {
     input: ListInvoicesInput,
     output: ListInvoicesOutput,
+    roles: ['OWNER', 'MANAGER'],
+  },
+  'sales.returnableLines': {
+    input: ReturnableLinesInput,
+    output: ReturnableLinesOutput,
+    roles: ['OWNER', 'MANAGER'],
+  },
+  // Taking goods back moves money OUT of the till, so it is not a salesman's
+  // call — same bar as browsing the register.
+  'sales.return': {
+    input: ReturnSaleInput,
+    output: ReturnSaleOutput,
     roles: ['OWNER', 'MANAGER'],
   },
   'parties.list': { input: ListPartiesInput, output: ListPartiesOutput },

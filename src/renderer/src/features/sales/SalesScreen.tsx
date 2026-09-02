@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Spin } from 'antd';
 import { api } from '../../lib/api.js';
 import { Screen } from '../../app/AppShell.js';
 import { Receipt } from '../pos/Receipt.js';
+import { ReturnModal } from './ReturnModal.js';
 import { rs, rs0, stamp } from '../../lib/format.js';
 import type { z } from 'zod';
 import type { InvoiceListRowDTO } from '../../../../shared/contracts/index.js';
@@ -43,6 +44,9 @@ export function SalesScreen() {
   const [preset, setPreset] = useState<Preset>('week');
   const [search, setSearch] = useState('');
   const [openId, setOpenId] = useState<number | null>(null);
+  // The bill a return is being taken against, if any.
+  const [returning, setReturning] = useState<Row | null>(null);
+  const qc = useQueryClient();
 
   const fromDate = useMemo(() => PRESETS.find((p) => p.key === preset)?.from() ?? null, [preset]);
 
@@ -186,10 +190,15 @@ export function SalesScreen() {
                       >
                         {rs(r.grandTotalPaisa)}
                       </td>
-                      <td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
                         <button className="btn btn-ghost" onClick={() => setOpenId(r.id)}>
                           {t('sales.openReceipt')}
                         </button>
+                        {!cancelled && (
+                          <button className="btn btn-ghost" onClick={() => setReturning(r)}>
+                            {t('sales.return')}
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -201,6 +210,13 @@ export function SalesScreen() {
       </div>
 
       <Receipt invoiceId={openId} open={openId != null} onClose={() => setOpenId(null)} />
+      <ReturnModal
+        invoiceId={returning?.id ?? null}
+        docNumber={returning?.docNumber ?? null}
+        open={returning != null}
+        onClose={() => setReturning(null)}
+        onDone={() => void qc.invalidateQueries({ queryKey: ['sales', 'list'] })}
+      />
     </Screen>
   );
 }
