@@ -1,0 +1,27 @@
+appId: com.jewelpos.app
+productName: Jewel POS
+directories:
+  output: dist
+  buildResources: resources
+files:
+  - out/**/*
+  - package.json
+# Native module must be unpacked from asar so better-sqlite3's .node binary loads.
+asarUnpack:
+  - '**/node_modules/better-sqlite3/**'
+  - '**/node_modules/@node-rs/**'
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+# electron-updater feed (fill in when a release channel exists).
+publish:
+  provider: generic
+  url: https://example.com/updates/

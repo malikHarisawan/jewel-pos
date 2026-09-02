@@ -1,0 +1,12 @@
+node_modules/
+out/
+dist/
+*.log
+.DS_Store
+# local SQLite dev database & backups
+*.db
+*.db-wal
+*.db-shm
+backups/
+# licensing private key — MUST never be committed or shipped
+license-private.pem
