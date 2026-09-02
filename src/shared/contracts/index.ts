@@ -458,6 +458,26 @@ export const InvoiceDTO = z.object({
 });
 export const GetInvoiceInput = z.object({ id: z.number().int() });
 
+// The sales register — one row per finalised invoice.
+export const InvoiceListRowDTO = z.object({
+  id: z.number().int(),
+  docNumber: z.string().nullable(),
+  docDate: z.string(),
+  status: z.enum(['FINAL', 'CANCELLED']),
+  grandTotalPaisa: z.number().int(),
+  customerName: z.string().nullable(),
+  lineCount: z.number().int(),
+  cashierName: z.string().nullable(),
+});
+export const ListInvoicesInput = z.object({
+  fromDate: z.string().nullable().optional(),
+  toDate: z.string().nullable().optional(),
+  search: z.string().nullable().optional(),
+  limit: z.number().int().min(1).max(500).optional(),
+  offset: z.number().int().min(0).optional(),
+});
+export const ListInvoicesOutput = z.array(InvoiceListRowDTO);
+
 // ---- parties (customers / suppliers / karigars) ---------------------------
 
 export const PartyKindSchema = z.enum(PARTY_KINDS);
@@ -715,6 +735,13 @@ export const contract = {
   'rates.quoteWeight': { input: QuoteWeightInput, output: QuoteWeightOutput },
   'sales.checkout': { input: CheckoutInput, output: CheckoutOutput, roles: ['OWNER', 'MANAGER', 'SALESMAN'] },
   'sales.getInvoice': { input: GetInvoiceInput, output: InvoiceDTO },
+  // The register is a management view: a salesman rings sales up but does not
+  // get to browse the day's takings.
+  'sales.list': {
+    input: ListInvoicesInput,
+    output: ListInvoicesOutput,
+    roles: ['OWNER', 'MANAGER'],
+  },
   'parties.list': { input: ListPartiesInput, output: ListPartiesOutput },
   'parties.create': { input: CreatePartyInput, output: PartyDTO, roles: ['OWNER', 'MANAGER'] },
   'karigar.jobs': { input: ListJobsInput, output: ListJobsOutput },

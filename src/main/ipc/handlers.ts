@@ -10,7 +10,7 @@ import {
   listBalances,
 } from '../services/stockService.js';
 import { enterRate, latestRates, rateHistory, quoteItems, quoteWeight } from '../services/rateService.js';
-import { checkout, getInvoice } from '../services/invoiceService.js';
+import { checkout, getInvoice, listInvoices } from '../services/invoiceService.js';
 import { getSettings, updateSettings } from '../services/settingsService.js';
 import { getSummary } from '../services/dashboardService.js';
 import { createParty, listParties } from '../services/partyService.js';
@@ -146,6 +146,7 @@ export const handlers: Handlers = {
   },
 
   'sales.getInvoice': (ctx, input) => getInvoice(ctx.db, input.id),
+  'sales.list': (ctx, input) => listInvoices(ctx.db, input),
 
   'parties.list': (ctx, input) => listParties(ctx.db, input),
   'parties.create': (ctx, input) => {

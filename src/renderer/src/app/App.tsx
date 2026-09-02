@@ -12,6 +12,7 @@ import { ItemFormScreen } from '../features/items/ItemFormScreen.js';
 import { StockScreen } from '../features/stock/StockScreen.js';
 import { RatesScreen } from '../features/rates/RatesScreen.js';
 import { PosScreen } from '../features/pos/PosScreen.js';
+import { SalesScreen } from '../features/sales/SalesScreen.js';
 import { KarigarScreen } from '../features/karigar/KarigarScreen.js';
 import { SettingsScreen } from '../features/settings/SettingsScreen.js';
 import { LicenseGate } from '../features/license/LicenseGate.js';
@@ -44,6 +45,7 @@ function Gate() {
         <Route path="stock" element={<StockScreen />} />
         <Route path="rates" element={<RatesScreen />} />
         <Route path="pos" element={<PosScreen />} />
+        <Route path="sales" element={<SalesScreen />} />
         <Route path="karigar" element={<KarigarScreen />} />
         <Route path="settings" element={<SettingsScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />

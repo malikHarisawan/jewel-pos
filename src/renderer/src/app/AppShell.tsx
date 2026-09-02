@@ -62,6 +62,14 @@ const NAV: NavEntry[] = [
     roles: ['OWNER', 'MANAGER', 'SALESMAN'],
   },
   {
+    key: 'sales',
+    path: '/sales',
+    labelKey: 'nav.sales',
+    fkey: 'F6',
+    d: 'M14 2v4a2 2 0 0 0 2 2h4M15 2H8a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V6zM10 9h1M10 13h5M10 17h5',
+    roles: ['OWNER', 'MANAGER'],
+  },
+  {
     key: 'karigar',
     path: '/karigar',
     labelKey: 'nav.karigar',

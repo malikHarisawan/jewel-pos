@@ -190,6 +190,83 @@ function readRoundTo(db: DB): 1 | 100 {
   return v === '1' ? 1 : 100;
 }
 
+export interface ListInvoicesFilter {
+  /** Inclusive ISO date bounds on doc_date (YYYY-MM-DD prefix compare). */
+  fromDate?: string | null;
+  toDate?: string | null;
+  /** Free text over the invoice number and the customer's name. */
+  search?: string | null;
+  limit?: number;
+  offset?: number;
+}
+
+/**
+ * Sales register. Without this the counter can print a bill and then never see
+ * it again — every lookup ("what did she buy last week?") was impossible.
+ *
+ * DRAFT rows are excluded: a draft is a checkout that never completed, and
+ * showing it in the register would imply a sale that did not happen.
+ */
+export function listInvoices(db: DB, filter: ListInvoicesFilter = {}) {
+  const where: string[] = [`d.doc_type='SALE_INVOICE'`, `d.status IN ('FINAL','CANCELLED')`];
+  const params: Record<string, string | number> = {};
+
+  if (filter.fromDate) {
+    where.push('d.doc_date >= @fromDate');
+    params.fromDate = filter.fromDate;
+  }
+  if (filter.toDate) {
+    // doc_date is a full ISO timestamp; compare against the end of the day so a
+    // to-date of 2026-09-02 includes sales made at 18:00 that day.
+    where.push('d.doc_date <= @toDateEnd');
+    params.toDateEnd = `${filter.toDate}T23:59:59.999Z`;
+  }
+  const search = filter.search?.trim();
+  if (search) {
+    where.push('(d.doc_number LIKE @q OR p.name LIKE @q)');
+    params.q = `%${search}%`;
+  }
+
+  const limit = Math.min(Math.max(filter.limit ?? 100, 1), 500);
+  const offset = Math.max(filter.offset ?? 0, 0);
+
+  const rows = db
+    .prepare(
+      `SELECT d.id, d.doc_number, d.doc_date, d.status, d.grand_total_paisa,
+              p.name AS customer_name,
+              (SELECT count(*) FROM document_lines dl
+                WHERE dl.document_id = d.id AND dl.line_kind != 'OLD_GOLD_EXCHANGE') AS line_count,
+              u.display_name AS cashier_name
+       FROM documents d
+       LEFT JOIN parties p ON p.id = d.party_id
+       LEFT JOIN users u ON u.id = d.finalized_by
+       WHERE ${where.join(' AND ')}
+       ORDER BY d.doc_date DESC, d.id DESC
+       LIMIT @limit OFFSET @offset`,
+    )
+    .all({ ...params, limit, offset }) as Array<{
+    id: number;
+    doc_number: string | null;
+    doc_date: string;
+    status: string;
+    grand_total_paisa: number;
+    customer_name: string | null;
+    line_count: number;
+    cashier_name: string | null;
+  }>;
+
+  return rows.map((r) => ({
+    id: r.id,
+    docNumber: r.doc_number,
+    docDate: r.doc_date,
+    status: r.status as 'FINAL' | 'CANCELLED',
+    grandTotalPaisa: r.grand_total_paisa,
+    customerName: r.customer_name,
+    lineCount: r.line_count,
+    cashierName: r.cashier_name,
+  }));
+}
+
 /** Read a finalized invoice with its lines and payments, for the receipt view. */
 export function getInvoice(db: DB, id: number) {
   const doc = db
