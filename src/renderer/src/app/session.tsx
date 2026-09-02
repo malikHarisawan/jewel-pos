@@ -7,6 +7,9 @@ interface SessionState {
   loading: boolean;
   login: (username: string, secret: string) => Promise<void>;
   logout: () => Promise<void>;
+  /** Re-read the session from the main process. Used after a change that alters
+   * the session itself (e.g. clearing the forced-PIN-change flag). */
+  refresh: () => Promise<void>;
 }
 
 const SessionContext = createContext<SessionState | null>(null);
@@ -31,8 +34,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setSession(null);
   };
 
+  const refresh = async () => {
+    setSession(await api['auth.me']({}));
+  };
+
   return (
-    <SessionContext.Provider value={{ session, loading, login, logout }}>
+    <SessionContext.Provider value={{ session, loading, login, logout, refresh }}>
       {children}
     </SessionContext.Provider>
   );

@@ -60,7 +60,14 @@ describe('M0 boot + login round-trip', () => {
       db,
       auth,
       license,
-      session: { userId: 2, username: 'sales', displayName: 'S', role: 'SALESMAN', loginAt: 0 },
+      session: {
+        userId: 2,
+        username: 'sales',
+        displayName: 'S',
+        role: 'SALESMAN',
+        loginAt: 0,
+        mustChangePin: false,
+      },
     }));
     // catalog.purities has no roles restriction, so a salesman CAN read it —
     // assert the happy path, then confirm an unauthenticated call is blocked.

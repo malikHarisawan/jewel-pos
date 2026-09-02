@@ -27,6 +27,9 @@ export const SessionSchema = z.object({
   displayName: z.string(),
   role: RoleSchema,
   loginAt: z.number().int(),
+  /** The account is on a handed-out PIN (seeded default or admin reset) and
+   * must set its own before the app opens. */
+  mustChangePin: z.boolean(),
 });
 export type SessionDTO = z.infer<typeof SessionSchema>;
 

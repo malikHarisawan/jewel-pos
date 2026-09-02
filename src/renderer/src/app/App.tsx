@@ -5,6 +5,7 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router';
 import { SessionProvider, useSession } from './session.js';
 import { AppShell } from './AppShell.js';
 import { LoginScreen } from '../features/auth/LoginScreen.js';
+import { ForceChangePinScreen } from '../features/auth/ForceChangePinScreen.js';
 import { Dashboard } from '../features/dashboard/Dashboard.js';
 import { ItemListScreen } from '../features/items/ItemListScreen.js';
 import { ItemFormScreen } from '../features/items/ItemFormScreen.js';
@@ -30,6 +31,9 @@ function Gate() {
       </div>
     );
   if (!session) return <LoginScreen />;
+  // A handed-out PIN (seeded default or admin reset) blocks the whole app until
+  // it is replaced — otherwise a shipped machine keeps the published password.
+  if (session.mustChangePin) return <ForceChangePinScreen />;
   return (
     <Routes>
       <Route element={<AppShell />}>

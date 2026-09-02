@@ -267,5 +267,11 @@
   "license.stillInvalid": "Code accepted but not active — it may have expired.",
   "license.dataSafe": "Nothing is deleted. Activating unlocks the app immediately with all your data.",
   "settings.discountSalesman": "Salesman may discount up to",
-  "settings.discountManager": "Manager / owner may discount up to"
+  "settings.discountManager": "Manager / owner may discount up to",
+  "pin.forceTitle": "Choose your own PIN",
+  "pin.forceBody": "This account is still on the PIN it was given, {{name}}. Set a private one before you start — anyone with the handbook knows the old one.",
+  "pin.confirm": "Repeat the new PIN",
+  "pin.tooShort": "Use at least {{n}} digits.",
+  "pin.mismatch": "The two new PINs do not match.",
+  "common.saving": "Saving…"
 }

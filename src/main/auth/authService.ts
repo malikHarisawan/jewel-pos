@@ -15,6 +15,9 @@ export interface Session {
   displayName: string;
   role: Role;
   loginAt: number;
+  /** True while the account still holds a PIN it was handed (the seeded default
+   * or an admin reset). The UI must force a change before showing any screen. */
+  mustChangePin: boolean;
 }
 
 export interface UserRow {
@@ -24,6 +27,7 @@ export interface UserRow {
   pin_hash: string;
   role: Role;
   is_active: number;
+  must_change_pin: number;
 }
 
 const MAX_ATTEMPTS = 5;
@@ -51,7 +55,8 @@ export class AuthService {
     return withAudit(this.db, actingUserId, (ctx) => {
       const info = this.db
         .prepare(
-          `INSERT INTO users (username, display_name, pin_hash, role) VALUES (?,?,?,?)`,
+          `INSERT INTO users (username, display_name, pin_hash, role, must_change_pin)
+           VALUES (?,?,?,?,1)`,
         )
         .run(input.username, input.displayName, pinHash, input.role);
       const id = Number(info.lastInsertRowid);
@@ -103,7 +108,11 @@ export class AuthService {
   async resetPin(actingUserId: number, userId: number, newSecret: string): Promise<void> {
     const pinHash = await this.hashSecret(newSecret);
     withAudit(this.db, actingUserId, (ctx) => {
-      this.db.prepare('UPDATE users SET pin_hash=? WHERE id=?').run(pinHash, userId);
+      // A PIN someone else picked is temporary: the owner knows it, so the user
+      // must replace it before the account is usable again.
+      this.db
+        .prepare('UPDATE users SET pin_hash=?, must_change_pin=1 WHERE id=?')
+        .run(pinHash, userId);
       ctx.record({ table: 'users', rowPk: userId, action: 'UPDATE', changes: { pinReset: true } });
     });
   }
@@ -116,11 +125,21 @@ export class AuthService {
     if (!user || !(await verify(user.pin_hash, currentSecret))) {
       throw new Error('current PIN is incorrect');
     }
+    if (currentSecret === newSecret) {
+      throw new Error('the new PIN must be different from the current one');
+    }
     const pinHash = await this.hashSecret(newSecret);
     withAudit(this.db, userId, (ctx) => {
-      this.db.prepare('UPDATE users SET pin_hash=? WHERE id=?').run(pinHash, userId);
+      this.db
+        .prepare('UPDATE users SET pin_hash=?, must_change_pin=0 WHERE id=?')
+        .run(pinHash, userId);
       ctx.record({ table: 'users', rowPk: userId, action: 'UPDATE', changes: { pinChanged: true } });
     });
+    // Clear the flag on the LIVE session too, so the gate opens without a
+    // re-login the moment the change succeeds.
+    if (this.session?.userId === userId) {
+      this.session = { ...this.session, mustChangePin: false };
+    }
   }
 
   async login(username: string, secret: string): Promise<Session> {
@@ -131,7 +150,8 @@ export class AuthService {
 
     const user = this.db
       .prepare(
-        `SELECT id, username, display_name, pin_hash, role, is_active FROM users WHERE username=?`,
+        `SELECT id, username, display_name, pin_hash, role, is_active, must_change_pin
+         FROM users WHERE username=?`,
       )
       .get(username) as UserRow | undefined;
 
@@ -148,6 +168,7 @@ export class AuthService {
       displayName: user.display_name,
       role: user.role,
       loginAt: this.now(),
+      mustChangePin: user.must_change_pin === 1,
     };
     withAudit(this.db, user.id, (ctx) =>
       ctx.record({ table: 'users', rowPk: user.id, action: 'LOGIN', changes: { username } }),
@@ -188,8 +209,11 @@ export async function ensureFirstOwner(
   const count = (db.prepare('SELECT count(*) c FROM users').get() as { c: number }).c;
   if (count > 0) return false;
   const pinHash = await auth.hashSecret(defaults.pin);
+  // Flagged from birth: this PIN is published in the docs and the boot log, so
+  // it must not survive the first sign-in.
   db.prepare(
-    `INSERT INTO users (username, display_name, pin_hash, role) VALUES (?,?,?,'OWNER')`,
+    `INSERT INTO users (username, display_name, pin_hash, role, must_change_pin)
+     VALUES (?,?,?,'OWNER',1)`,
   ).run(defaults.username, defaults.displayName, pinHash);
   return true;
 }
