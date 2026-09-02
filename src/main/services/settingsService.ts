@@ -13,6 +13,8 @@ const SETTING_DEFAULTS = {
   invoice_round_to: '100',
   tola_mg: '11664',
   idle_lock_minutes: '10',
+  max_discount_pct_salesman: '5',
+  max_discount_pct_manager: '20',
 } as const;
 
 export type SettingKey = keyof typeof SETTING_DEFAULTS;

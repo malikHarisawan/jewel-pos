@@ -133,6 +133,9 @@ export const handlers: Handlers = {
     const session = ctx.auth.requireSession();
     return checkout(ctx.db, session.userId, {
       dateISO: new Date().toISOString(),
+      // Role comes from the main-process session, never from the payload — this
+      // is what makes the discount ceiling unfakeable from the renderer.
+      role: session.role,
       customerId: input.customerId ?? null,
       saleLines: input.saleLines,
       oldGoldLines: input.oldGoldLines,

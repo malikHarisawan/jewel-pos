@@ -4,6 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { App as AntApp, Select, Spin } from 'antd';
 import { api } from '../../lib/api.js';
 import { useCatalog } from '../items/useCatalog.js';
+import { useSession } from '../../app/session.js';
 import { Receipt } from './Receipt.js';
 import { rs, g, gu, parseNum } from '../../lib/format.js';
 import { gramsToMg, rupeesToPaisa } from '../../../../shared/units/index.js';
@@ -37,6 +38,7 @@ export function PosScreen() {
   const { t } = useTranslation();
   const { message } = AntApp.useApp();
   const catalog = useCatalog();
+  const { session } = useSession();
 
   const [cart, setCart] = useState<CartLine[]>([]);
   const [oldGold, setOldGold] = useState<OldGoldLine[]>([]);
@@ -144,6 +146,21 @@ export function PosScreen() {
   // "Pay exact" match the server's grand total and pass the payment check.
   const saleAdjustmentPaisa = finalPayable - serverBase;
 
+  // The server caps how far this role may cut a bill (see assertDiscountAllowed).
+  // Mirror it here so the counter sees the limit BEFORE pressing F9, rather than
+  // getting a rejection after the customer is already waiting.
+  const discountCapPct = Number(
+    session?.role === 'SALESMAN'
+      ? settings.data?.max_discount_pct_salesman
+      : settings.data?.max_discount_pct_manager,
+  );
+  const capPct = Number.isFinite(discountCapPct) ? discountCapPct : null;
+  const appliedDiscountPaisa = saleAdjustmentPaisa < 0 ? -saleAdjustmentPaisa : 0;
+  const discountOverLimit =
+    capPct != null &&
+    appliedDiscountPaisa > 0 &&
+    (serverBase <= 0 || appliedDiscountPaisa > Math.floor((serverBase * capPct) / 100));
+
   const paid = payments.reduce((s, p) => s + rupeesToPaisa(p.rupees || 0), 0);
   const remaining = finalPayable - paid;
 
@@ -210,7 +227,8 @@ export function PosScreen() {
     onError: (e: Error) => message.error(e.message),
   });
 
-  const canCheckout = cart.length > 0 && paid === finalPayable && finalPayable >= 0;
+  const canCheckout =
+    cart.length > 0 && paid === finalPayable && finalPayable >= 0 && !discountOverLimit;
 
   // Type-ahead results. The scanner types a tag and presses Enter; the top match
   // is what gets added, so the whole flow is keyboard-only.
@@ -634,6 +652,25 @@ export function PosScreen() {
             {t('pos.estimateNote')}
           </div>
 
+          {discountOverLimit && (
+            <div
+              style={{
+                marginTop: 9,
+                padding: '8px 11px',
+                borderRadius: 12,
+                fontSize: 11.5,
+                lineHeight: 1.45,
+                background: 'color-mix(in srgb, var(--color-accent) 16%, transparent)',
+                border: '1px solid color-mix(in srgb, var(--color-accent) 45%, transparent)',
+              }}
+            >
+              {t('pos.discountOverLimit', {
+                pct: capPct,
+                role: session?.role ?? '',
+              })}
+            </div>
+          )}
+
           <div style={{ height: 1, background: 'var(--color-divider)', margin: '12px 0' }} />
 
           {/* Payments */}
@@ -753,8 +790,10 @@ export function PosScreen() {
           </button>
           <div style={{ fontSize: 11, opacity: 0.55, textAlign: 'center', marginTop: 7 }}>
             {cart.length === 0
-              ? 'Add an item to start a sale'
-              : 'Checkout stays blocked until the payment lines sum to the payable exactly'}
+              ? t('pos.hintAddItem')
+              : discountOverLimit
+                ? t('pos.hintDiscountBlocked')
+                : t('pos.hintExactPayment')}
           </div>
         </div>
       </div>

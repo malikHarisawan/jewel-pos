@@ -576,6 +576,9 @@ export const SettingsDTO = z.object({
   invoice_round_to: z.string(),
   tola_mg: z.string(),
   idle_lock_minutes: z.string(),
+  /** Whole-percent discount ceilings, enforced server-side per role. */
+  max_discount_pct_salesman: z.string(),
+  max_discount_pct_manager: z.string(),
 });
 export const UpdateSettingsInput = z.object({
   shop_name: z.string().optional(),
@@ -586,6 +589,8 @@ export const UpdateSettingsInput = z.object({
   invoice_round_to: z.enum(['1', '100']).optional(),
   tola_mg: z.string().optional(),
   idle_lock_minutes: z.string().optional(),
+  max_discount_pct_salesman: z.string().optional(),
+  max_discount_pct_manager: z.string().optional(),
 });
 
 // ---- user management ------------------------------------------------------

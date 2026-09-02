@@ -10,6 +10,7 @@ import sql0001 from './0001_init.sql?raw';
 import sql0002 from './0002_sale_adjustment.sql?raw';
 import sql0003 from './0003_karigar.sql?raw';
 import sql0004 from './0004_license.sql?raw';
+import sql0005 from './0005_discount_limits.sql?raw';
 
 export interface Migration {
   version: number;
@@ -22,6 +23,7 @@ export const MIGRATIONS: Migration[] = [
   { version: 2, name: '0002_sale_adjustment', sql: sql0002 },
   { version: 3, name: '0003_karigar', sql: sql0003 },
   { version: 4, name: '0004_license', sql: sql0004 },
+  { version: 5, name: '0005_discount_limits', sql: sql0005 },
 ];
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

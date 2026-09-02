@@ -57,6 +57,7 @@ describe('checkout (one-call POS sale)', () => {
     // grand = 28,130,000
     const res = checkout(db, 1, {
       dateISO: '2026-07-27T10:00:00.000Z',
+      role: 'OWNER',
       saleLines: [
         {
           itemId: ring,
@@ -101,6 +102,7 @@ describe('checkout (one-call POS sale)', () => {
     expect(() =>
       checkout(db, 1, {
         dateISO: '2026-07-27T10:00:00.000Z',
+        role: 'OWNER',
         saleLines: [
           {
             itemId: ring,
@@ -133,6 +135,7 @@ describe('checkout (one-call POS sale)', () => {
     // discount 515,000 -> charged 25,000,000
     const res = checkout(db, 1, {
       dateISO: '2026-07-27T10:00:00.000Z',
+      role: 'OWNER',
       saleAdjustmentPaisa: -515_000,
       saleLines: [
         {
@@ -165,6 +168,7 @@ describe('checkout (one-call POS sale)', () => {
     // computed 25,515,000 + surcharge 485,000 -> charged 26,000,000 (round number)
     const res = checkout(db, 1, {
       dateISO: '2026-07-27T10:00:00.000Z',
+      role: 'OWNER',
       saleAdjustmentPaisa: 485_000,
       saleLines: [
         {
@@ -194,6 +198,7 @@ describe('checkout (one-call POS sale)', () => {
     expect(() =>
       checkout(db, 1, {
         dateISO: '2026-07-27T10:00:00.000Z',
+        role: 'OWNER',
         saleAdjustmentPaisa: -515_000,
         saleLines: [
           {
@@ -222,6 +227,7 @@ describe('checkout (one-call POS sale)', () => {
     const ring = makeRing(db, 'RING-3', 10_000);
     const res = checkout(db, 1, {
       dateISO: '2026-07-27T10:00:00.000Z',
+      role: 'OWNER',
       saleLines: [
         {
           itemId: ring,

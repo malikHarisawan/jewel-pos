@@ -133,6 +133,7 @@ describe('invoice finalize', () => {
         tax: { rateBp: 0, base: 'TOTAL' },
         roundTo: 100,
         scrapLocationId: 1,
+        role: 'OWNER',
       }),
     ).toThrow(/do not cover/);
 
@@ -189,6 +190,7 @@ describe('invoice finalize', () => {
       tax: { rateBp: 300, base: 'TOTAL_MINUS_METAL' },
       roundTo: 100,
       scrapLocationId: 1,
+      role: 'OWNER',
     });
 
     expect(res.grandTotalPaisa).toBe(25_515_000);
@@ -242,6 +244,7 @@ describe('invoice finalize', () => {
       tax: { rateBp: 300, base: 'TOTAL_MINUS_METAL' },
       roundTo: 100,
       scrapLocationId: 1,
+      role: 'OWNER',
     });
 
     expect(res.grandTotalPaisa).toBe(28_130_000);

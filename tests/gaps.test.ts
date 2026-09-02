@@ -182,6 +182,7 @@ describe('Gap 4: checkout tolerates rounding within a rupee', () => {
     // the server should accept it if within Rs 1 of the computed total.
     const res = checkout(db, 1, {
       dateISO: '2026-08-07T10:00:00.000Z',
+      role: 'OWNER',
       saleLines: [
         {
           itemId: id,

@@ -151,6 +151,10 @@
   "pos.surcharge": "Adjustment",
   "pos.payable": "Payable",
   "pos.estimateNote": "Estimate at today's rate. The server re-prices at checkout and the receipt is authoritative.",
+  "pos.discountOverLimit": "This discount is above the {{pct}}% limit for a {{role}}. A manager or owner must ring up this sale.",
+  "pos.hintAddItem": "Add an item to start a sale",
+  "pos.hintExactPayment": "Checkout stays blocked until the payment lines sum to the payable exactly",
+  "pos.hintDiscountBlocked": "Checkout is blocked: the discount is above your approval limit",
   "pos.payments": "Payments",
   "pos.payExact": "Pay exact",
   "pos.splitPayment": "+ Split payment",
@@ -261,5 +265,7 @@
   "license.activated": "Activated — thank you!",
   "license.invalidCode": "That code is not valid for this machine.",
   "license.stillInvalid": "Code accepted but not active — it may have expired.",
-  "license.dataSafe": "Nothing is deleted. Activating unlocks the app immediately with all your data."
+  "license.dataSafe": "Nothing is deleted. Activating unlocks the app immediately with all your data.",
+  "settings.discountSalesman": "Salesman may discount up to",
+  "settings.discountManager": "Manager / owner may discount up to"
 }

@@ -20,7 +20,7 @@ import {
   type RateSnapshot,
   type TaxConfig,
 } from '../../shared/pricing/engine.js';
-import type { MakingMode, PaymentMethod } from '../../shared/domain/enums.js';
+import type { MakingMode, PaymentMethod, Role } from '../../shared/domain/enums.js';
 
 export interface SaleLineInput {
   itemId: number;
@@ -65,6 +65,8 @@ export interface FinalizeInvoiceInput {
   /** Signed whole-sale adjustment applied AFTER line totals: negative = discount,
    * positive = surcharge. The counter uses it to set a custom final amount. */
   saleAdjustmentPaisa?: number;
+  /** Caller's role; the discount ceiling is enforced against it. */
+  role: Role;
 }
 
 export interface FinalizeResult {
@@ -106,6 +108,9 @@ function issueDocNumber(db: DB, docType: string, fiscalYear: number): string {
  * clock) and its year drives the invoice number's fiscal year. */
 export interface CheckoutInput {
   dateISO: string;
+  /** The caller's role, taken from the main-process session (never the renderer).
+   * Drives the discount-authority ceiling. */
+  role: Role;
   customerId?: number | null;
   saleLines: SaleLineInput[];
   oldGoldLines: OldGoldLineInput[];
@@ -113,6 +118,59 @@ export interface CheckoutInput {
   discountApprovedBy?: number | null;
   /** Signed whole-sale adjustment (negative = discount, positive = surcharge). */
   saleAdjustmentPaisa?: number;
+}
+
+/** Whole-percent discount ceiling for a role, from app_settings. OWNER and
+ * MANAGER share the higher bound; a SALESMAN gets the tighter one. */
+function discountCeilingPct(db: DB, role: Role): number {
+  const key = role === 'SALESMAN' ? 'max_discount_pct_salesman' : 'max_discount_pct_manager';
+  const raw = (db.prepare('SELECT value FROM app_settings WHERE key=?').get(key) as
+    | { value: string }
+    | undefined)?.value;
+  const pct = Number(raw);
+  // A missing/garbled setting must not silently open the till: fall back to the
+  // conservative default rather than to "no limit".
+  if (!Number.isFinite(pct) || pct < 0) return role === 'SALESMAN' ? 5 : 20;
+  return pct;
+}
+
+/**
+ * Reject a sale whose downward adjustment exceeds the caller's authority.
+ *
+ * `adjustment` is signed: negative discounts the bill, positive surcharges it.
+ * Only discounts are capped — charging MORE than computed is never a leak. The
+ * cap is a percentage of the computed total, so it scales with the bill instead
+ * of being a flat rupee figure that is meaningless across a Rs 5,000 chain and
+ * a Rs 5,00,000 set.
+ */
+export function assertDiscountAllowed(
+  db: DB,
+  role: Role,
+  computedTotalPaisa: number,
+  adjustmentPaisa: number,
+): void {
+  if (adjustmentPaisa >= 0) return; // surcharge or exact — always fine
+  const discount = -adjustmentPaisa;
+
+  // A discount on a zero/negative bill (pure old-gold exchange) has no
+  // percentage to measure against; refuse it outright rather than divide by zero.
+  if (computedTotalPaisa <= 0) {
+    throw new Error('cannot discount a sale with no positive total');
+  }
+  if (discount > computedTotalPaisa) {
+    throw new Error('discount cannot exceed the sale total');
+  }
+
+  const pct = discountCeilingPct(db, role);
+  // Compare in integer paisa (discount/total vs pct/100) to avoid float drift.
+  const allowedPaisa = Math.floor((computedTotalPaisa * pct) / 100);
+  if (discount > allowedPaisa) {
+    const asPct = ((discount / computedTotalPaisa) * 100).toFixed(1);
+    throw new Error(
+      `discount of ${asPct}% exceeds the ${pct}% limit for ${role}; ` +
+        `a manager or owner must approve this sale`,
+    );
+  }
 }
 
 function readTaxConfig(db: DB): TaxConfig {
@@ -234,6 +292,7 @@ export function checkout(db: DB, userId: number, input: CheckoutInput): Finalize
       discountApprovedBy: input.discountApprovedBy ?? null,
       scrapLocationId: rootLocation,
       saleAdjustmentPaisa: input.saleAdjustmentPaisa ?? 0,
+      role: input.role,
     });
   });
 }
@@ -422,6 +481,10 @@ export function finalizeInvoice(
     const totals = totalDocument(breakdowns, input.roundTo);
     const adjustment = input.saleAdjustmentPaisa ?? 0;
 
+    // Discount authority. Checked BEFORE any payment is written, against the
+    // engine's own computed total — never against a figure the renderer sent.
+    assertDiscountAllowed(db, input.role, totals.grandTotalPaisa, adjustment);
+
     // ---- payments ----
     let paid = 0;
     const insertPayment = db.prepare(
@@ -450,6 +513,10 @@ export function finalizeInvoice(
     // so the header's totals reconcile with the payment.
     const chargedTotal = paid;
     const effectiveAdjustment = chargedTotal - totals.grandTotalPaisa;
+    // `paid` may differ from the requested adjustment by up to one rounding step,
+    // so the ACTUAL discount is re-checked here. Without this, the tolerance
+    // window would be a hole straight through the ceiling above.
+    assertDiscountAllowed(db, input.role, totals.grandTotalPaisa, effectiveAdjustment);
 
     // ---- freeze header + finalize ----
     db.prepare(

@@ -31,6 +31,7 @@ export function SettingsScreen() {
       >
         <ShopPanel canManage={canManage} />
         <SalePanel canManage={canManage} />
+        {isOwner && <DiscountPanel />}
         <ChangePinPanel />
         {isOwner && (
           <div style={{ gridColumn: '1 / -1' }}>
@@ -176,6 +177,60 @@ function SalePanel({ canManage }: { canManage: boolean }) {
             {t('common.save')}
           </button>
         )}
+      </Form>
+    </Panel>
+  );
+}
+
+/** Discount authority. Owner-only: these ceilings are what stop a cashier from
+ * discounting a bill to nothing, so a manager must not be able to raise their
+ * own limit. The server enforces them regardless of what this screen shows. */
+function DiscountPanel() {
+  const { t } = useTranslation();
+  const { message } = AntApp.useApp();
+  const qc = useQueryClient();
+  const settings = useSettings();
+  const [form] = Form.useForm();
+
+  useEffect(() => {
+    if (settings.data) {
+      form.setFieldsValue({
+        max_discount_pct_salesman: Number(settings.data.max_discount_pct_salesman),
+        max_discount_pct_manager: Number(settings.data.max_discount_pct_manager),
+      });
+    }
+  }, [settings.data, form]);
+
+  const save = useMutation({
+    mutationFn: (v: { max_discount_pct_salesman: number; max_discount_pct_manager: number }) =>
+      api['settings.update']({
+        max_discount_pct_salesman: String(v.max_discount_pct_salesman ?? 0),
+        max_discount_pct_manager: String(v.max_discount_pct_manager ?? 0),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['settings'] });
+      message.success(t('settings.saved'));
+    },
+    onError: (e: Error) => message.error(e.message),
+  });
+
+  return (
+    <Panel
+      title="Discount limits"
+      hint="How far each role may cut a bill on their own. Checked at checkout — a sale past the limit is refused."
+    >
+      <Form layout="vertical" form={form} onFinish={(v) => save.mutate(v)}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Form.Item name="max_discount_pct_salesman" label={t('settings.discountSalesman')}>
+            <InputNumber className="jp-num" min={0} max={100} step={1} addonAfter="%" style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="max_discount_pct_manager" label={t('settings.discountManager')}>
+            <InputNumber className="jp-num" min={0} max={100} step={1} addonAfter="%" style={{ width: '100%' }} />
+          </Form.Item>
+        </div>
+        <button className="btn btn-primary" type="submit" disabled={save.isPending}>
+          {t('common.save')}
+        </button>
       </Form>
     </Panel>
   );
