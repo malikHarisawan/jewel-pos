@@ -14,7 +14,9 @@ interface NavEntry {
   key: string;
   path: string;
   labelKey: string;
-  fkey: string;
+  /** Sidebar shortcut. Absent when no safe key is left — F9 finalises a sale in
+   * the POS and F10-F12 belong to Windows. */
+  fkey?: string;
   /** 24x24 stroke icon path. */
   d: string;
   roles: Role[];
@@ -70,10 +72,18 @@ const NAV: NavEntry[] = [
     roles: ['OWNER', 'MANAGER'],
   },
   {
+    key: 'credit',
+    path: '/credit',
+    labelKey: 'nav.credit',
+    fkey: 'F7',
+    d: 'M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6',
+    roles: ['OWNER', 'MANAGER'],
+  },
+  {
     key: 'karigar',
     path: '/karigar',
     labelKey: 'nav.karigar',
-    fkey: 'F7',
+    fkey: 'F8',
     d: 'm15 12-8.5 8.5a2.12 2.12 0 1 1-3-3L12 9M17.64 15 22 10.64M20.91 11.7l-1.25-1.25c-.6-.6-.93-1.4-.93-2.25v-.86L16.01 4.6a5.56 5.56 0 0 0-3.94-1.64H9l.92.82A6.18 6.18 0 0 1 12 8.4v1.56l2 2h2.47z',
     roles: ['OWNER', 'MANAGER'],
   },
@@ -81,7 +91,6 @@ const NAV: NavEntry[] = [
     key: 'settings',
     path: '/settings',
     labelKey: 'nav.settings',
-    fkey: 'F8',
     d: 'M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4',
     roles: ['OWNER', 'MANAGER'],
   },
@@ -124,7 +133,7 @@ export function AppShell() {
   // by role so a salesman's F2 does not land on a screen the IPC will refuse.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const entry = NAV.find((n) => n.fkey === e.key);
+      const entry = NAV.find((n) => n.fkey != null && n.fkey === e.key);
       if (!entry) return;
       e.preventDefault();
       if (entry.roles.includes(role)) navigate(entry.path);

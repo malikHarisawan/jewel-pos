@@ -518,6 +518,51 @@ export const ReturnSaleOutput = z.object({
   grandTotalPaisa: z.number().int(),
 });
 
+// ---- customer credit (udhaar) --------------------------------------------
+
+export const LedgerEntryTypeSchema = z.enum([
+  'CREDIT_SALE',
+  'REPAYMENT',
+  'RETURN_CREDIT',
+  'OPENING',
+  'ADJUSTMENT',
+]);
+
+export const DebtorDTO = z.object({
+  partyId: z.number().int(),
+  name: z.string(),
+  phone: z.string().nullable(),
+  balancePaisa: z.number().int(),
+  lastEntryDate: z.string().nullable(),
+});
+export const ListDebtorsInput = z.object({ includeSettled: z.boolean().optional() });
+export const ListDebtorsOutput = z.array(DebtorDTO);
+
+export const LedgerRowDTO = z.object({
+  id: z.number().int(),
+  entryType: LedgerEntryTypeSchema,
+  amountPaisa: z.number().int(),
+  documentId: z.number().int().nullable(),
+  docNumber: z.string().nullable(),
+  method: z.string().nullable(),
+  notes: z.string().nullable(),
+  entryDate: z.string(),
+  balanceAfterPaisa: z.number().int(),
+});
+export const StatementInput = z.object({ partyId: z.number().int() });
+export const StatementOutput = z.array(LedgerRowDTO);
+
+export const RepaymentInput = z.object({
+  partyId: z.number().int(),
+  amountPaisa: z.number().int().positive(),
+  method: z.enum(['CASH', 'BANK', 'CARD']),
+  notes: z.string().nullable().optional(),
+});
+export const RepaymentOutput = z.object({
+  entryId: z.number().int(),
+  balancePaisa: z.number().int(),
+});
+
 // ---- parties (customers / suppliers / karigars) ---------------------------
 
 export const PartyKindSchema = z.enum(PARTY_KINDS);
@@ -794,8 +839,20 @@ export const contract = {
     output: ReturnSaleOutput,
     roles: ['OWNER', 'MANAGER'],
   },
+  // Udhaar. A salesman may see what a customer owes (they need it at the
+  // counter to decide whether to extend more credit) but only an owner or
+  // manager takes money against the account.
+  'credit.debtors': { input: ListDebtorsInput, output: ListDebtorsOutput, roles: ['OWNER', 'MANAGER'] },
+  'credit.statement': { input: StatementInput, output: StatementOutput },
+  'credit.repay': { input: RepaymentInput, output: RepaymentOutput, roles: ['OWNER', 'MANAGER'] },
   'parties.list': { input: ListPartiesInput, output: ListPartiesOutput },
-  'parties.create': { input: CreatePartyInput, output: PartyDTO, roles: ['OWNER', 'MANAGER'] },
+  // A salesman can register a walk-in customer — a credit sale to a first-time
+  // buyer must not require fetching the owner.
+  'parties.create': {
+    input: CreatePartyInput,
+    output: PartyDTO,
+    roles: ['OWNER', 'MANAGER', 'SALESMAN'],
+  },
   'karigar.jobs': { input: ListJobsInput, output: ListJobsOutput },
   'karigar.accounts': { input: z.object({}), output: KarigarAccountsOutput },
   'karigar.rawBalance': { input: RawBalanceInput, output: RawBalanceOutput },

@@ -12,6 +12,7 @@
 import type { DB } from '../db/connection.js';
 import { withAudit } from '../db/audit.js';
 import { insertMovement } from './ledgerService.js';
+import { postEntry } from './creditService.js';
 import {
   priceSaleLine,
   priceOldGoldLine,
@@ -590,9 +591,31 @@ export function returnSale(db: DB, userId: number, input: ReturnSaleInput): Fina
     }
 
     // The refund is a negative payment, so the day's takings net out.
+    const refundMethod = input.refundMethod ?? 'CASH';
     db.prepare(
       `INSERT INTO payments (document_id, method, amount_paisa, received_by) VALUES (?,?,?,?)`,
-    ).run(returnDocId, input.refundMethod ?? 'CASH', -refundPaisa, userId);
+    ).run(returnDocId, refundMethod, -refundPaisa, userId);
+
+    // Refunding "to credit" writes the money off the customer's account rather
+    // than handing over cash — the right move when the sale was never paid for.
+    if (refundMethod === 'CREDIT') {
+      if (original.party_id == null) {
+        throw new Error('cannot refund to credit on a walk-in sale — there is no account');
+      }
+      postEntry(
+        db,
+        userId,
+        {
+          partyId: original.party_id,
+          entryType: 'RETURN_CREDIT',
+          amountPaisa: -refundPaisa, // negative: they owe less
+          documentId: returnDocId,
+          entryDate: input.dateISO,
+          notes: docNumber,
+        },
+        audit,
+      );
+    }
 
     db.prepare(
       `UPDATE documents SET
@@ -880,6 +903,31 @@ export function finalizeInvoice(
     // so the ACTUAL discount is re-checked here. Without this, the tolerance
     // window would be a hole straight through the ceiling above.
     assertDiscountAllowed(db, input.role, totals.grandTotalPaisa, effectiveAdjustment);
+
+    // ---- credit (udhaar) ----
+    // A CREDIT payment line means the customer walked out without paying that
+    // part. Record it against their account, or the money simply disappears.
+    const creditPaisa = input.payments
+      .filter((p) => p.method === 'CREDIT')
+      .reduce((sum, p) => sum + p.amountPaisa, 0);
+    if (creditPaisa > 0) {
+      if (input.customerId == null) {
+        throw new Error('a credit sale needs a customer — pick who owes the money');
+      }
+      postEntry(
+        db,
+        userId,
+        {
+          partyId: input.customerId,
+          entryType: 'CREDIT_SALE',
+          amountPaisa: creditPaisa, // positive: they owe the shop more
+          documentId: input.documentId,
+          entryDate: doc.doc_date,
+          notes: docNumber,
+        },
+        audit,
+      );
+    }
 
     // ---- freeze header + finalize ----
     db.prepare(

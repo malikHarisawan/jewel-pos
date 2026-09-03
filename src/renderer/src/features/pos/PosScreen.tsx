@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App as AntApp, Select, Spin } from 'antd';
 import { api } from '../../lib/api.js';
 import { useCatalog } from '../items/useCatalog.js';
@@ -47,6 +47,11 @@ export function PosScreen() {
   const [keyCounter, setKeyCounter] = useState(2);
   const [search, setSearch] = useState('');
   const [ogOpen, setOgOpen] = useState(false);
+  // Who the bill is for. Null is a walk-in, which is fine until the bill goes
+  // on credit — then we need to know whose account to charge.
+  const [customerId, setCustomerId] = useState<number | null>(null);
+  const [newCustomer, setNewCustomer] = useState('');
+  const qc = useQueryClient();
 
   // Price adjustment (all optional). Discount reduces; a custom total overrides.
   const [discountMode, setDiscountMode] = useState<'RS' | 'PCT'>('RS');
@@ -115,6 +120,31 @@ export function PosScreen() {
     return sign * Math.floor((Math.abs(paisa) + roundStep / 2) / roundStep) * roundStep;
   };
 
+  const customers = useQuery({
+    queryKey: ['parties', 'CUSTOMER'],
+    queryFn: () => api['parties.list']({ kind: 'CUSTOMER', limit: 500 }),
+  });
+
+  const addCustomer = useMutation({
+    mutationFn: (name: string) => api['parties.create']({ kind: 'CUSTOMER', name }),
+    onSuccess: (p) => {
+      void qc.invalidateQueries({ queryKey: ['parties'] });
+      setCustomerId(p.id);
+      setNewCustomer('');
+      message.success(t('pos.customerAdded', { name: p.name }));
+    },
+    onError: (e: Error) => message.error(e.message),
+  });
+
+  // What this customer already owes, so the counter can see it before agreeing
+  // to put yet more on the book.
+  const owed = useQuery({
+    queryKey: ['credit', 'statement', customerId],
+    queryFn: () => api['credit.statement']({ partyId: customerId! }),
+    enabled: customerId != null,
+  });
+  const owedPaisa = owed.data?.at(-1)?.balanceAfterPaisa ?? 0;
+
   // ---- live totals (client-side estimate; server re-prices authoritatively) ----
   const saleTotal = cart.reduce((s, c) => s + c.quoteTotalPaisa, 0);
   const oldGoldTotal = oldGold.reduce((s, og) => {
@@ -161,6 +191,14 @@ export function PosScreen() {
     appliedDiscountPaisa > 0 &&
     (serverBase <= 0 || appliedDiscountPaisa > Math.floor((serverBase * capPct) / 100));
 
+  // A CREDIT line means the customer walks out owing money, so the server needs
+  // to know whose account to charge. Mirror that here rather than letting the
+  // sale fail at F9 with the customer standing at the counter.
+  const creditPaisa = payments
+    .filter((p) => p.method === 'CREDIT')
+    .reduce((s, p) => s + rupeesToPaisa(p.rupees || 0), 0);
+  const creditNeedsCustomer = creditPaisa > 0 && customerId == null;
+
   const paid = payments.reduce((s, p) => s + rupeesToPaisa(p.rupees || 0), 0);
   const remaining = finalPayable - paid;
 
@@ -178,6 +216,7 @@ export function PosScreen() {
   const checkout = useMutation({
     mutationFn: () =>
       api['sales.checkout']({
+        customerId,
         saleLines: cart.map((c) => {
           const isLot = c.item.trackingMode === 'LOT';
           const netMg = isLot ? Math.round((c.sellGrams ?? 0) * 1000) : c.item.netMg;
@@ -220,6 +259,7 @@ export function PosScreen() {
       setPayments([{ key: 1, method: 'CASH', rupees: 0 }]);
       setDiscountValue(0);
       setCustomTotalRupees(null);
+      setCustomerId(null);
       setPaymentsTouched(false);
       setOgOpen(false);
       void items.refetch();
@@ -228,7 +268,11 @@ export function PosScreen() {
   });
 
   const canCheckout =
-    cart.length > 0 && paid === finalPayable && finalPayable >= 0 && !discountOverLimit;
+    cart.length > 0 &&
+    paid === finalPayable &&
+    finalPayable >= 0 &&
+    !discountOverLimit &&
+    !creditNeedsCustomer;
 
   // Type-ahead results. The scanner types a tag and presses Enter; the top match
   // is what gets added, so the whole flow is keyboard-only.
@@ -652,6 +696,22 @@ export function PosScreen() {
             {t('pos.estimateNote')}
           </div>
 
+          {creditNeedsCustomer && (
+            <div
+              style={{
+                marginTop: 9,
+                padding: '8px 11px',
+                borderRadius: 12,
+                fontSize: 11.5,
+                lineHeight: 1.45,
+                background: 'color-mix(in srgb, var(--color-accent) 16%, transparent)',
+                border: '1px solid color-mix(in srgb, var(--color-accent) 45%, transparent)',
+              }}
+            >
+              {t('pos.creditNeedsCustomer')}
+            </div>
+          )}
+
           {discountOverLimit && (
             <div
               style={{
@@ -672,6 +732,46 @@ export function PosScreen() {
           )}
 
           <div style={{ height: 1, background: 'var(--color-divider)', margin: '12px 0' }} />
+
+          {/* Who the bill is for. Only needed for credit, but useful on any bill
+              so the sale shows up in that customer's history. */}
+          <div className="field" style={{ marginBottom: 12 }}>
+            <label>{t('pos.customer')}</label>
+            <Select
+              showSearch
+              allowClear
+              value={customerId ?? undefined}
+              onChange={(v) => setCustomerId(v ?? null)}
+              placeholder={t('pos.walkIn')}
+              style={{ width: '100%' }}
+              optionFilterProp="label"
+              options={(customers.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
+              notFoundContent={
+                <div style={{ padding: 8 }}>
+                  <input
+                    className="input"
+                    value={newCustomer}
+                    placeholder={t('pos.newCustomerPh')}
+                    onChange={(e) => setNewCustomer(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newCustomer.trim()) {
+                        addCustomer.mutate(newCustomer.trim());
+                      }
+                    }}
+                    style={{ width: '100%' }}
+                  />
+                  <div style={{ fontSize: 11, opacity: 0.6, marginTop: 6 }}>
+                    {t('pos.newCustomerHint')}
+                  </div>
+                </div>
+              }
+            />
+            {customerId != null && owedPaisa > 0 && (
+              <div style={{ fontSize: 11.5, marginTop: 6, opacity: 0.75 }}>
+                {t('pos.alreadyOwes', { amount: rs(owedPaisa) })}
+              </div>
+            )}
+          </div>
 
           {/* Payments */}
           <div
@@ -791,9 +891,11 @@ export function PosScreen() {
           <div style={{ fontSize: 11, opacity: 0.55, textAlign: 'center', marginTop: 7 }}>
             {cart.length === 0
               ? t('pos.hintAddItem')
-              : discountOverLimit
-                ? t('pos.hintDiscountBlocked')
-                : t('pos.hintExactPayment')}
+              : creditNeedsCustomer
+                ? t('pos.hintCreditBlocked')
+                : discountOverLimit
+                  ? t('pos.hintDiscountBlocked')
+                  : t('pos.hintExactPayment')}
           </div>
         </div>
       </div>

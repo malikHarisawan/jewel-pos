@@ -20,6 +20,7 @@ import {
 import { getSettings, updateSettings } from '../services/settingsService.js';
 import { getSummary } from '../services/dashboardService.js';
 import { createParty, listParties } from '../services/partyService.js';
+import { listDebtors, getStatement, recordRepayment } from '../services/creditService.js';
 import {
   issueJob,
   receiveJob,
@@ -162,6 +163,19 @@ export const handlers: Handlers = {
       lines: input.lines,
       refundMethod: input.refundMethod,
       reason: input.reason ?? null,
+    });
+  },
+
+  'credit.debtors': (ctx, input) => listDebtors(ctx.db, input.includeSettled ?? false),
+  'credit.statement': (ctx, input) => getStatement(ctx.db, input.partyId),
+  'credit.repay': (ctx, input) => {
+    const session = ctx.auth.requireSession();
+    return recordRepayment(ctx.db, session.userId, {
+      partyId: input.partyId,
+      amountPaisa: input.amountPaisa,
+      method: input.method,
+      entryDate: new Date().toISOString(),
+      notes: input.notes ?? null,
     });
   },
 
