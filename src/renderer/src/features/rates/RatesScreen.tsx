@@ -234,7 +234,7 @@ export function RatesScreen() {
                 value={purityId}
                 onChange={setPurityId}
                 style={{ width: '100%' }}
-                placeholder="Choose a purity"
+                placeholder={t('common.choosePurity')}
                 options={rows.map((r) => ({
                   value: r.purityId,
                   label: `${metalName.get(r.metalId) ?? ''} · ${r.label}`,

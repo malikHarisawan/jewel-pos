@@ -327,7 +327,7 @@ function PurchasePanel({ itemOptions, onPosted }: PanelProps) {
           options={itemOptions}
           showSearch
           optionFilterProp="label"
-          placeholder="Choose an item"
+          placeholder={t('common.chooseItem')}
           style={{ width: '100%' }}
         />
       </div>

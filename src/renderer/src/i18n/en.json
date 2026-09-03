@@ -343,5 +343,17 @@
   "credit.payAll": "Whole balance",
   "credit.record": "Record payment",
   "credit.paymentTaken": "Payment recorded",
-  "credit.overPayment": "That is more than the outstanding balance."
+  "credit.overPayment": "That is more than the outstanding balance.",
+  "receipt.subtotal": "Subtotal",
+  "receipt.discount": "Discount",
+  "receipt.oldGold": "Old gold",
+  "receipt.adjustment": "Adjustment",
+  "receipt.rounding": "Rounding",
+  "pos.scanPh": "Scan a tag or type an item name…  ⏎ adds the top match",
+  "pos.removePayment": "Remove payment",
+  "items.searchPh": "Search name, tag or category…",
+  "items.field.less": "Less — stones, beads, lac (g)",
+  "common.chooseItem": "Choose an item",
+  "common.choosePurity": "Choose a purity",
+  "common.fullName": "Full name"
 }

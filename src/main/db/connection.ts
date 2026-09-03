@@ -52,9 +52,37 @@ export function openDatabase(opts: OpenOptions): DB {
   applyPragmas(db);
 
   if (opts.beforeMigrate) {
-    const current = db.pragma('user_version', { simple: true }) as number;
-    const pending = MIGRATIONS.some((m) => m.version > current);
-    opts.beforeMigrate(db, pending);
+    opts.beforeMigrate(db, hasPendingMigrations(db));
+  }
+
+  runMigrations(db);
+  return db;
+}
+
+/** Whether any migration is newer than what this DB has applied. */
+export function hasPendingMigrations(db: DB): boolean {
+  const current = db.pragma('user_version', { simple: true }) as number;
+  return MIGRATIONS.some((m) => m.version > current);
+}
+
+export interface OpenAsyncOptions {
+  filename: string;
+  /**
+   * Awaited before migrations run. The sync `beforeMigrate` above cannot be
+   * awaited, so a pre-migration backup started there might still be writing
+   * when the schema changes underneath it — precisely the backup you need if
+   * the migration goes wrong.
+   */
+  beforeMigrate?: (db: DB, pending: boolean) => Promise<void>;
+}
+
+/** `openDatabase` for callers that need the pre-migrate hook to COMPLETE. */
+export async function openDatabaseAsync(opts: OpenAsyncOptions): Promise<DB> {
+  const db = new Database(opts.filename);
+  applyPragmas(db);
+
+  if (opts.beforeMigrate) {
+    await opts.beforeMigrate(db, hasPendingMigrations(db));
   }
 
   runMigrations(db);

@@ -401,7 +401,7 @@ export function ItemFormScreen() {
                   −
                 </div>
                 <div style={{ width: 170 }}>
-                  <Form.Item name="lessG" label="Less — stones, beads, lac (g)">
+                  <Form.Item name="lessG" label={t('items.field.less')}>
                     <InputNumber className="jp-num" min={0} step={0.001} style={{ width: '100%' }} />
                   </Form.Item>
                 </div>

@@ -95,6 +95,7 @@ function ReceiptBody({
   taxPct: number;
   metalExempt: boolean;
 }) {
+  const { t } = useTranslation();
   // The printed sheet is deliberately plain: white ground, hairline rules and
   // black text, so it reads on cheap paper and survives a fax or a photocopy.
   const subtotal =
@@ -226,10 +227,10 @@ function ReceiptBody({
         </div>
 
         <div style={{ width: 230 }}>
-          <TotalRow label="Subtotal" value={rs(subtotal)} />
-          {inv.discountPaisa !== 0 && <TotalRow label="Discount" value={rs(inv.discountPaisa)} />}
+          <TotalRow label={t('receipt.subtotal')} value={rs(subtotal)} />
+          {inv.discountPaisa !== 0 && <TotalRow label={t('receipt.discount')} value={rs(inv.discountPaisa)} />}
           {inv.exchangeValuePaisa !== 0 && (
-            <TotalRow label="Old gold" value={rs(inv.exchangeValuePaisa)} />
+            <TotalRow label={t('receipt.oldGold')} value={rs(inv.exchangeValuePaisa)} />
           )}
           {inv.taxPaisa > 0 && (
             <TotalRow
@@ -238,10 +239,10 @@ function ReceiptBody({
             />
           )}
           {inv.saleAdjustmentPaisa !== 0 && (
-            <TotalRow label="Adjustment" value={rsSigned(inv.saleAdjustmentPaisa)} />
+            <TotalRow label={t('receipt.adjustment')} value={rsSigned(inv.saleAdjustmentPaisa)} />
           )}
           {inv.roundingPaisa !== 0 && (
-            <TotalRow label="Rounding" value={rsSigned(inv.roundingPaisa)} />
+            <TotalRow label={t('receipt.rounding')} value={rsSigned(inv.roundingPaisa)} />
           )}
           <div
             className="jp-num"

@@ -71,7 +71,7 @@ export function ItemListScreen() {
             className="input"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search name, tag or category…"
+            placeholder={t('items.searchPh')}
             style={{ width: 260 }}
           />
           <button className="btn btn-primary" onClick={() => navigate('/items/new')}>

@@ -179,7 +179,7 @@ function AddUserRow() {
           className="input"
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
-          placeholder="Full name"
+          placeholder={t('common.fullName')}
         />
       </div>
       <div className="field">

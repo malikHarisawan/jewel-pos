@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App as AntApp, Select, Spin } from 'antd';
@@ -93,15 +93,50 @@ export function PosScreen() {
     setCart((c) => [...c, { item, quoteTotalPaisa: q.totalPaisa, hasRate: q.hasRate }]);
   }
 
+  // Per-line re-pricing state. Typing "12.5" used to fire four quotes, and a
+  // slow early response could land after a later one and show the wrong price.
+  // A timer per line debounces the call; a sequence number per line makes a
+  // stale response identifiable so it can be dropped.
+  const quoteTimers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
+  const quoteSeq = useRef(new Map<number, number>());
+
+  // Cancel anything still pending when the screen goes away.
+  useEffect(() => {
+    const timers = quoteTimers.current;
+    return () => {
+      for (const timer of timers.values()) clearTimeout(timer);
+      timers.clear();
+    };
+  }, []);
+
   /** Re-price a LOT cart line after the cashier changes the grams sold. */
-  async function updateLotGrams(itemId: number, grams: number) {
+  function updateLotGrams(itemId: number, grams: number) {
     setCart((c) => c.map((x) => (x.item.id === itemId ? { ...x, sellGrams: grams } : x)));
-    if (grams > 0) {
-      const q = await api['rates.quoteWeight']({ itemId, netMg: Math.round(grams * 1000) });
-      setCart((c) =>
-        c.map((x) => (x.item.id === itemId ? { ...x, quoteTotalPaisa: q.totalPaisa, hasRate: q.hasRate } : x)),
-      );
-    }
+
+    const pending = quoteTimers.current.get(itemId);
+    if (pending) clearTimeout(pending);
+    if (grams <= 0) return;
+
+    const seq = (quoteSeq.current.get(itemId) ?? 0) + 1;
+    quoteSeq.current.set(itemId, seq);
+
+    quoteTimers.current.set(
+      itemId,
+      setTimeout(() => {
+        quoteTimers.current.delete(itemId);
+        void api['rates.quoteWeight']({ itemId, netMg: Math.round(grams * 1000) }).then((q) => {
+          // A newer keystroke has already been sent; this answer is out of date.
+          if (quoteSeq.current.get(itemId) !== seq) return;
+          setCart((c) =>
+            c.map((x) =>
+              x.item.id === itemId
+                ? { ...x, quoteTotalPaisa: q.totalPaisa, hasRate: q.hasRate }
+                : x,
+            ),
+          );
+        });
+      }, 250),
+    );
   }
 
   const rates = useQuery({ queryKey: ['rates', 'latest'], queryFn: () => api['rates.latest']({}) });
@@ -321,7 +356,7 @@ export function PosScreen() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && results[0]) void addItem(results[0].id);
               }}
-              placeholder="Scan a tag or type an item name…  ⏎ adds the top match"
+              placeholder={t('pos.scanPh')}
               style={{ height: 46, fontSize: 15, paddingInlineStart: 42 }}
             />
             <svg
@@ -534,7 +569,7 @@ export function PosScreen() {
                           className="input jp-num"
                           style={{ width: 96 }}
                           value={c.sellGrams ?? ''}
-                          onChange={(e) => void updateLotGrams(c.item.id, parseNum(e.target.value))}
+                          onChange={(e) => updateLotGrams(c.item.id, parseNum(e.target.value))}
                           aria-label="Grams"
                         />
                         <span style={{ fontSize: 12, opacity: 0.6 }}>g</span>
@@ -823,7 +858,7 @@ export function PosScreen() {
               {payments.length > 1 && (
                 <button
                   className="btn btn-ghost"
-                  aria-label="Remove payment"
+                  aria-label={t('pos.removePayment')}
                   onClick={() => {
                     setPaymentsTouched(true);
                     setPayments((ps) => ps.filter((x) => x.key !== p.key));

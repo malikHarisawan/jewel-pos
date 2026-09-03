@@ -3,11 +3,12 @@
 import { app, BrowserWindow, dialog } from 'electron';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { openDatabase, type DB } from './db/connection.js';
+import { openDatabaseAsync, type DB } from './db/connection.js';
 import { backupNow, rotateBackups } from './db/backup.js';
 import { AuthService, ensureFirstOwner } from './auth/authService.js';
 import { LicenseService } from './license/licenseService.js';
 import { registerIpc } from './ipc/register.js';
+import { initAutoUpdate } from './updater.js';
 import type { AppContext } from './ipc/router.js';
 import { dataDir, dbPath, backupsDir } from './paths.js';
 
@@ -22,14 +23,20 @@ let backupTimer: NodeJS.Timeout | null = null;
 async function bootDatabase(): Promise<void> {
   mkdirSync(dataDir(), { recursive: true });
 
-  db = openDatabase({
+  db = await openDatabaseAsync({
     filename: dbPath(),
-    beforeMigrate: (handle, pending) => {
-      if (pending) {
-        const version = handle.pragma('user_version', { simple: true }) as number;
-        // Fire-and-await via a synchronous shim: backup() is async, but boot is
-        // allowed to block here — the window hasn't opened yet.
-        void backupNow(handle, backupsDir(), 'pre-migration', new Date(), version);
+    beforeMigrate: async (handle, pending) => {
+      if (!pending) return;
+      const version = handle.pragma('user_version', { simple: true }) as number;
+      // Awaited, not fire-and-forget: this is the copy you fall back on if the
+      // migration corrupts something, so it must be on disk and verified BEFORE
+      // the schema changes. Blocking here is fine — no window has opened yet.
+      const res = await backupNow(handle, backupsDir(), 'pre-migration', new Date(), version);
+      if (!res.ok) {
+        throw new Error(
+          'the safety backup taken before upgrading failed its integrity check; ' +
+            'the database was left untouched',
+        );
       }
     },
   });
@@ -107,6 +114,7 @@ if (!gotLock) {
     registerIpc(getContext);
     scheduleBackups();
     createWindow();
+    initAutoUpdate();
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
