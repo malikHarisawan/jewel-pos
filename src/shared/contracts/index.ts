@@ -563,6 +563,22 @@ export const RepaymentOutput = z.object({
   balancePaisa: z.number().int(),
 });
 
+// ---- backups --------------------------------------------------------------
+
+export const BackupFileDTO = z.object({
+  name: z.string(),
+  kind: z.string(),
+  sizeBytes: z.number().int(),
+  takenAt: z.string(),
+});
+export const ListBackupsOutput = z.array(BackupFileDTO);
+export const BackupNowOutput = z.object({ name: z.string(), ok: z.boolean() });
+export const RestoreBackupInput = z.object({ name: z.string().min(1) });
+export const RestoreBackupOutput = z.object({
+  restoredFrom: z.string(),
+  safetyCopy: z.string(),
+});
+
 // ---- parties (customers / suppliers / karigars) ---------------------------
 
 export const PartyKindSchema = z.enum(PARTY_KINDS);
@@ -845,6 +861,16 @@ export const contract = {
   'credit.debtors': { input: ListDebtorsInput, output: ListDebtorsOutput, roles: ['OWNER', 'MANAGER'] },
   'credit.statement': { input: StatementInput, output: StatementOutput },
   'credit.repay': { input: RepaymentInput, output: RepaymentOutput, roles: ['OWNER', 'MANAGER'] },
+
+  // Backups. Restoring replaces the shop's whole database, so it is owner-only
+  // and the app restarts afterwards rather than hot-swapping an open handle.
+  'backup.list': { input: z.object({}), output: ListBackupsOutput, roles: ['OWNER'] },
+  'backup.now': { input: z.object({}), output: BackupNowOutput, roles: ['OWNER'] },
+  'backup.restore': {
+    input: RestoreBackupInput,
+    output: RestoreBackupOutput,
+    roles: ['OWNER'],
+  },
   'parties.list': { input: ListPartiesInput, output: ListPartiesOutput },
   // A salesman can register a walk-in customer — a credit sale to a first-time
   // buyer must not require fetching the owner.

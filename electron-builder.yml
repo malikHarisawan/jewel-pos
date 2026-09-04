@@ -1,27 +1,40 @@
 appId: com.jewelpos.app
 productName: Jewel POS
+copyright: Jewel POS
 directories:
   output: dist
   buildResources: resources
 files:
   - out/**/*
   - package.json
-# Native module must be unpacked from asar so better-sqlite3's .node binary loads.
+# The native modules ship a .node binary that cannot be loaded from inside asar.
 asarUnpack:
   - '**/node_modules/better-sqlite3/**'
   - '**/node_modules/@node-rs/**'
 win:
+  icon: resources/icon.ico
   target:
     - target: nsis
       arch:
         - x64
+  # No code-signing certificate yet: Windows SmartScreen will warn on first run
+  # until one is bought. Left explicit so it is a decision, not an oversight.
+  signAndEditExecutable: true
 nsis:
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-# electron-updater feed (fill in when a release channel exists).
+  shortcutName: Jewel POS
+  # The shop's data lives in %APPDATA%, never beside the exe, so uninstalling
+  # or reinstalling the app cannot take the ledger with it.
+  deleteAppDataOnUninstall: false
+  installerIcon: resources/icon.ico
+  uninstallerIcon: resources/icon.ico
+  installerHeaderIcon: resources/icon.ico
+# electron-updater feed. Auto-update stays OFF until this is a real host —
+# src/main/updater.ts treats example.com as "no channel configured".
 publish:
   provider: generic
   url: https://example.com/updates/

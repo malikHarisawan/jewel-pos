@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Outlet, useNavigate, useLocation } from 'react-router';
 import { useSession } from './session.js';
+import { useIdleLock } from './useIdleLock.js';
 import { api } from '../lib/api.js';
 import { formatPKR, TOLA_MG, MG_PER_GRAM } from '../../../shared/units/index.js';
 import type { Role } from '../../../shared/domain/enums.js';
@@ -128,6 +129,11 @@ export function AppShell() {
 
   const active =
     NAV.slice(1).find((n) => location.pathname.startsWith(n.path))?.key ?? 'dashboard';
+
+  // Lock back to sign-in after the configured idle time. Only meaningful once
+  // signed in, which is the only state this shell renders in.
+  const idleMinutes = Number(settings.data?.idle_lock_minutes);
+  useIdleLock(idleMinutes, () => void logout());
 
   // F-keys jump between screens, the way the counter staff drive a POS. Guarded
   // by role so a salesman's F2 does not land on a screen the IPC will refuse.

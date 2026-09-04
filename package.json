@@ -1,6 +1,6 @@
 {
   "name": "jewel-pos",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Offline-first jewellery shop inventory & POS (Pakistan)",
   "main": "out/main/index.cjs",
   "scripts": {
@@ -13,10 +13,12 @@
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
     "db:generate": "drizzle-kit generate",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "dist": "electron-vite build && electron-builder --win --x64",
+    "verify": "npm run typecheck && npm run lint && npm run test"
   },
   "keywords": [],
-  "author": "",
+  "author": "Jewel POS",
   "license": "UNLICENSED",
   "type": "module",
   "dependencies": {

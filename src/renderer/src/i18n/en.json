@@ -355,5 +355,18 @@
   "items.field.less": "Less — stones, beads, lac (g)",
   "common.chooseItem": "Choose an item",
   "common.choosePurity": "Choose a purity",
-  "common.fullName": "Full name"
+  "common.fullName": "Full name",
+  "settings.idleLock": "Lock the counter after (minutes)",
+  "settings.idleLockHint": "Returns to the sign-in screen when nobody has touched the PC. 0 turns it off.",
+  "backup.takeNow": "Back up now",
+  "backup.taken": "Backup saved ({{name}})",
+  "backup.failed": "The backup failed its integrity check and was discarded.",
+  "backup.none": "No backups yet. One is taken automatically when you close the app.",
+  "backup.restore": "Restore",
+  "backup.col.when": "Taken",
+  "backup.col.kind": "Kind",
+  "backup.col.size": "Size",
+  "backup.confirmTitle": "Restore this backup?",
+  "backup.confirmBody": "Everything recorded since {{name}} was taken will be replaced. A copy of the current data is saved first, so this can be undone. The app will restart.",
+  "backup.confirmOk": "Restore and restart"
 }

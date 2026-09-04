@@ -21,6 +21,10 @@ import { getSettings, updateSettings } from '../services/settingsService.js';
 import { getSummary } from '../services/dashboardService.js';
 import { createParty, listParties } from '../services/partyService.js';
 import { listDebtors, getStatement, recordRepayment } from '../services/creditService.js';
+import { listBackups, backupNow, restoreBackup } from '../db/backup.js';
+import { backupsDir, dbPath } from '../paths.js';
+import { basename } from 'node:path';
+import { app } from 'electron';
 import {
   issueJob,
   receiveJob,
@@ -177,6 +181,25 @@ export const handlers: Handlers = {
       entryDate: new Date().toISOString(),
       notes: input.notes ?? null,
     });
+  },
+
+  'backup.list': () => listBackups(backupsDir()),
+  'backup.now': async (ctx) => {
+    const res = await backupNow(ctx.db, backupsDir(), 'manual', new Date());
+    return { name: basename(res.path), ok: res.ok };
+  },
+  'backup.restore': (ctx, input) => {
+    // Close the live handle BEFORE the file is swapped: on Windows an open
+    // handle would either block the copy or leave the app reading a file that
+    // no longer matches its page cache.
+    ctx.db.pragma('wal_checkpoint(TRUNCATE)');
+    ctx.db.close();
+    const res = restoreBackup(backupsDir(), input.name, dbPath());
+    // The DB the whole process was built around is gone; restart into the
+    // restored one rather than trying to rebuild every service in place.
+    app.relaunch();
+    setTimeout(() => app.exit(0), 800);
+    return res;
   },
 
   'parties.list': (ctx, input) => listParties(ctx.db, input),

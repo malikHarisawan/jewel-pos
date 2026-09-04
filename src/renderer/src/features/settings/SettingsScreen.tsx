@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { App as AntApp, Form, Input, InputNumber, Select } from 'antd';
+import { App as AntApp, Form, Input, InputNumber, Select, Spin } from 'antd';
 import { api } from '../../lib/api.js';
 import { useSession } from '../../app/session.js';
 import { Screen } from '../../app/AppShell.js';
+import { stamp } from '../../lib/format.js';
 import { UsersPanel } from './UsersPanel.js';
 
 /** Shop identity, tax and rounding rules, users and this user's own PIN.
@@ -33,6 +34,7 @@ export function SettingsScreen() {
         <SalePanel canManage={canManage} />
         {isOwner && <DiscountPanel />}
         <ChangePinPanel />
+        {isOwner && <BackupPanel />}
         {isOwner && (
           <div style={{ gridColumn: '1 / -1' }}>
             <UsersPanel />
@@ -82,6 +84,7 @@ function ShopPanel({ canManage }: { canManage: boolean }) {
         shop_name: v.shop_name,
         shop_address: v.shop_address,
         shop_phone: v.shop_phone,
+        idle_lock_minutes: String(Math.max(0, Math.round(Number(v.idle_lock_minutes) || 0))),
       }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['settings'] });
@@ -101,6 +104,13 @@ function ShopPanel({ canManage }: { canManage: boolean }) {
         </Form.Item>
         <Form.Item name="shop_phone" label={t('settings.shopPhone')}>
           <Input className="jp-num" />
+        </Form.Item>
+        <Form.Item
+          name="idle_lock_minutes"
+          label={t('settings.idleLock')}
+          extra={t('settings.idleLockHint')}
+        >
+          <InputNumber className="jp-num" min={0} max={240} step={5} style={{ width: '100%' }} />
         </Form.Item>
         {canManage && (
           <button className="btn btn-primary" type="submit" disabled={save.isPending}>
@@ -232,6 +242,101 @@ function DiscountPanel() {
           {t('common.save')}
         </button>
       </Form>
+    </Panel>
+  );
+}
+
+/** Backups: what exists, take one now, and put one back.
+ *
+ * Restore is the only destructive action in the app, so it asks twice and says
+ * plainly what will happen. A safety copy of the current database is taken
+ * first, which means restoring the wrong file is itself undoable. */
+function BackupPanel() {
+  const { t } = useTranslation();
+  const { message, modal } = AntApp.useApp();
+  const qc = useQueryClient();
+
+  const backups = useQuery({
+    queryKey: ['backups'],
+    queryFn: () => api['backup.list']({}),
+  });
+
+  const takeNow = useMutation({
+    mutationFn: () => api['backup.now']({}),
+    onSuccess: (res) => {
+      if (res.ok) message.success(t('backup.taken', { name: res.name }));
+      else message.error(t('backup.failed'));
+      void qc.invalidateQueries({ queryKey: ['backups'] });
+    },
+    onError: (e: Error) => message.error(e.message),
+  });
+
+  const restore = useMutation({
+    mutationFn: (name: string) => api['backup.restore']({ name }),
+    onError: (e: Error) => message.error(e.message),
+  });
+
+  const confirmRestore = (name: string) => {
+    modal.confirm({
+      title: t('backup.confirmTitle'),
+      content: t('backup.confirmBody', { name }),
+      okText: t('backup.confirmOk'),
+      okButtonProps: { danger: true },
+      cancelText: t('common.close'),
+      onOk: () => restore.mutate(name),
+    });
+  };
+
+  const mb = (bytes: number) => `${(bytes / 1_048_576).toFixed(1)} MB`;
+
+  return (
+    <Panel title="Backups" hint="Taken automatically every few hours, on close, and before any upgrade.">
+      <div style={{ marginBottom: 12 }}>
+        <button
+          className="btn btn-secondary"
+          onClick={() => takeNow.mutate()}
+          disabled={takeNow.isPending}
+        >
+          {takeNow.isPending ? <Spin size="small" /> : t('backup.takeNow')}
+        </button>
+      </div>
+
+      {backups.isLoading ? (
+        <Spin />
+      ) : (backups.data ?? []).length === 0 ? (
+        <div style={{ fontSize: 12.5, opacity: 0.6 }}>{t('backup.none')}</div>
+      ) : (
+        <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+          <table className="table jp-num" style={{ width: '100%' }}>
+            <thead>
+              <tr>
+                <th>{t('backup.col.when')}</th>
+                <th>{t('backup.col.kind')}</th>
+                <th>{t('backup.col.size')}</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {(backups.data ?? []).map((b) => (
+                <tr key={b.name}>
+                  <td style={{ fontSize: 12 }}>{stamp(b.takenAt)}</td>
+                  <td style={{ fontSize: 12, opacity: 0.7 }}>{b.kind}</td>
+                  <td style={{ fontSize: 12, opacity: 0.7 }}>{mb(b.sizeBytes)}</td>
+                  <td>
+                    <button
+                      className="btn btn-ghost"
+                      onClick={() => confirmRestore(b.name)}
+                      disabled={restore.isPending}
+                    >
+                      {t('backup.restore')}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </Panel>
   );
 }
