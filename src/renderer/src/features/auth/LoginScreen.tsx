@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSession } from '../../app/session.js';
 import { Brand, GateShell } from './GateShell.js';
 
 /** Sign-in gate. One PC sits on the counter and three people share it, so the
- * PIN goes in on a keypad big enough to hit without looking — and the username
- * is typed once, then remembered between locks. */
+ * PIN can be tapped on a keypad big enough to hit without looking, OR simply
+ * typed — a real password field holds focus, so the number row works the way
+ * anyone signing in expects. The username is typed once and stays between
+ * locks. */
 export function LoginScreen() {
   const { t } = useTranslation();
   const { login } = useSession();
@@ -13,6 +15,7 @@ export function LoginScreen() {
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const pinRef = useRef<HTMLInputElement>(null);
 
   const submit = async (secret: string) => {
     if (!username.trim()) {
@@ -46,10 +49,23 @@ export function LoginScreen() {
     setError(null);
   };
 
-  // The counter uses the number row as much as the on-screen pad.
+  // Focus the PIN box on arrival: the counter's first keystroke should land on
+  // the PIN, not the username, which is already filled in from last time.
+  useEffect(() => {
+    pinRef.current?.focus();
+  }, []);
+
+  /**
+   * Typing anywhere that is NOT a text box still drives the pad, so a digit
+   * pressed while focus sits on a keypad button (after a tap) is not swallowed.
+   * When the PIN field itself has focus its own onChange handles the key, so
+   * this deliberately ignores it — otherwise every digit would register twice.
+   */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement && e.target.type === 'text') return;
+      const el = e.target as HTMLElement | null;
+      const tag = el?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || el?.isContentEditable) return;
       if (/^[0-9]$/.test(e.key)) press(e.key);
       else if (e.key === 'Backspace') press('del');
       else if (e.key === 'Enter') press('ok');
@@ -87,7 +103,6 @@ export function LoginScreen() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoComplete="username"
-              autoFocus
             />
           </div>
 
@@ -131,12 +146,46 @@ export function LoginScreen() {
             >
               {t('login.pin')}
             </div>
-            <div
+            {/* A real password input, not a display div: it can be focused and
+                typed into, works with the on-screen pad through the same state,
+                and keeps the PIN masked either way. */}
+            <input
+              ref={pinRef}
               className="jp-num"
-              style={{ fontSize: 32, letterSpacing: '.34em', marginTop: 6, minHeight: 42 }}
-            >
-              {pin ? '•'.repeat(pin.length) : <span style={{ opacity: 0.35 }}>○○○○</span>}
-            </div>
+              type="password"
+              inputMode="numeric"
+              autoComplete="current-password"
+              aria-label={t('login.pin')}
+              value={pin}
+              disabled={submitting}
+              placeholder="••••"
+              onChange={(e) => {
+                // Digits only, so a stray letter cannot silently become part of
+                // a PIN the user then cannot reproduce.
+                setPin(e.target.value.replace(/\D/g, '').slice(0, 12));
+                setError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  void submit(pin);
+                }
+              }}
+              style={{
+                width: '100%',
+                marginTop: 6,
+                minHeight: 42,
+                background: 'transparent',
+                border: 0,
+                borderBottom: '1px solid color-mix(in srgb, var(--color-bg) 30%, transparent)',
+                color: 'var(--color-bg)',
+                fontSize: 32,
+                letterSpacing: '.34em',
+                textAlign: 'center',
+                outline: 'none',
+                fontFamily: 'inherit',
+              }}
+            />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 9 }}>
@@ -144,8 +193,15 @@ export function LoginScreen() {
               <button
                 key={k}
                 className="jp-key"
+                type="button"
                 disabled={submitting}
-                onClick={() => press(k)}
+                // Keep focus in the PIN box so tapping the pad and typing can be
+                // mixed freely in one sign-in.
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  press(k);
+                  pinRef.current?.focus();
+                }}
                 aria-label={k === 'del' ? 'Delete' : k === 'ok' ? t('login.submit') : k}
               >
                 {k === 'del' ? '⌫' : k === 'ok' ? t('login.submit') : k}

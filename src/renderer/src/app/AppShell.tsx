@@ -483,7 +483,9 @@ export function AppShell() {
           <span className="jp-num" style={{ opacity: 0.6 }}>
             Money in paisa · weight in milligrams · no floating point
           </span>
-          <span className="jp-num" style={{ marginInlineStart: 'auto', opacity: 0.45 }}>
+          {/* The machine ID is dictated to the vendor to mint a licence, so it
+              gets the monospaced face where 0/O and 1/l stay distinct. */}
+          <span className="jp-mono" style={{ marginInlineStart: 'auto', opacity: 0.45 }}>
             {lic?.machineId ?? ''}
           </span>
         </div>

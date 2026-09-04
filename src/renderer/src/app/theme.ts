@@ -43,8 +43,11 @@ export const tokens = {
   accent2_700: '#56633f',
   accent2_800: '#3d472b',
 
-  fontHeading: "'Caprasimo', system-ui, sans-serif",
-  fontBody: "'Figtree', system-ui, sans-serif",
+  // Kept in step with --font-heading / --font-body / --font-mono in styles.css:
+  // antd surfaces and the hand-rolled ones must not drift apart.
+  fontHeading: "'Lora', Georgia, 'Times New Roman', serif",
+  fontBody: "'Poppins', system-ui, sans-serif",
+  fontMono: "'DejaVu Sans Mono', ui-monospace, Consolas, monospace",
 } as const;
 
 /** Shell chrome — the flattened equivalents of the --jp-ink / --jp-desk mixes.
@@ -81,8 +84,9 @@ export const antdTheme: ThemeConfig = {
   },
   components: {
     Button: {
-      // Buttons carry the display face across the whole system.
-      fontWeight: 400,
+      // Poppins at 400 reads thin on a filled button; 500 matches the weight
+      // the rest of the UI settles on without tipping into shouty.
+      fontWeight: 500,
       primaryShadow: 'none',
       defaultShadow: 'none',
       dangerShadow: 'none',

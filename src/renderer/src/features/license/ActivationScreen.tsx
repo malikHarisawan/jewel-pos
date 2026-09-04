@@ -73,10 +73,9 @@ export function ActivationScreen({ machineId, onActivated }: Props) {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <div
-              className="jp-num"
+              className="jp-mono"
               style={{
-                fontFamily: 'var(--font-heading)',
-                fontSize: 28,
+                fontSize: 26,
                 letterSpacing: '.12em',
                 color: 'var(--color-accent-300)',
                 wordBreak: 'break-all',
@@ -116,7 +115,7 @@ export function ActivationScreen({ machineId, onActivated }: Props) {
             <div className="field" style={{ flex: 1, minWidth: 260 }}>
               <label>{t('license.enterCode')}</label>
               <textarea
-                className="input jp-num"
+                className="input jp-mono"
                 rows={2}
                 value={code}
                 onChange={(e) => setCode(e.target.value)}

@@ -12,46 +12,104 @@
 
 /* ── fonts ─────────────────────────────────────────────────────────────── */
 
+/* Lora — serif headings. Variable file, so one face covers 400..700. */
 @font-face {
-  font-family: 'Caprasimo';
+  font-family: 'Lora';
   font-style: normal;
-  font-weight: 400;
+  font-weight: 400 700;
   font-display: swap;
-  src: url('./assets/fonts/caprasimo-latin.woff2') format('woff2');
+  src: url('./assets/fonts/lora-latin.woff2') format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
     U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
-  font-family: 'Caprasimo';
+  font-family: 'Lora';
   font-style: normal;
-  font-weight: 400;
+  font-weight: 400 700;
   font-display: swap;
-  src: url('./assets/fonts/caprasimo-latin-ext.woff2') format('woff2');
+  src: url('./assets/fonts/lora-latin-ext.woff2') format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
     U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
     U+2C60-2C7F, U+A720-A7FF;
 }
 
-/* Figtree ships as a variable font — one file covers the 400/600/700 the
-   system uses, so the weight range is declared rather than three faces. */
+/* Poppins — body text. Not a variable font on Google, so the three weights the
+   UI actually uses (400 regular, 500 labels, 600 emphasis) ship as separate
+   faces rather than letting the browser synthesise a fake bold. */
 @font-face {
-  font-family: 'Figtree';
+  font-family: 'Poppins';
   font-style: normal;
-  font-weight: 300 900;
+  font-weight: 400;
   font-display: swap;
-  src: url('./assets/fonts/figtree-latin.woff2') format('woff2');
+  src: url('./assets/fonts/poppins-400-latin.woff2') format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
     U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
-  font-family: 'Figtree';
+  font-family: 'Poppins';
   font-style: normal;
-  font-weight: 300 900;
+  font-weight: 400;
   font-display: swap;
-  src: url('./assets/fonts/figtree-latin-ext.woff2') format('woff2');
+  src: url('./assets/fonts/poppins-400-latin-ext.woff2') format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
     U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
     U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./assets/fonts/poppins-500-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./assets/fonts/poppins-500-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
+    U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+    U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./assets/fonts/poppins-600-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./assets/fonts/poppins-600-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
+    U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+    U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* DejaVu Sans Mono — code, machine IDs, licence keys: anything that gets read
+   out character by character, where 0/O and 1/l must not be confusable. Its
+   latin subset already covers extended Latin, so there is no separate ext file. */
+@font-face {
+  font-family: 'DejaVu Sans Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./assets/fonts/dejavu-mono-latin-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'DejaVu Sans Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./assets/fonts/dejavu-mono-latin-700.woff2') format('woff2');
 }
 
 /* ── tokens ────────────────────────────────────────────────────────────── */
@@ -96,9 +154,12 @@
   --color-accent-2-800: #3d472b;
   --color-accent-2-900: #272e1b;
 
-  --font-heading: 'Caprasimo', system-ui, sans-serif;
-  --font-heading-weight: 400;
-  --font-body: 'Figtree', system-ui, sans-serif;
+  --font-heading: 'Lora', Georgia, 'Times New Roman', serif;
+  /* Lora is a text serif, not a display face: headings need real weight to
+     hold their own, where Caprasimo carried it by shape alone. */
+  --font-heading-weight: 600;
+  --font-body: 'Poppins', system-ui, sans-serif;
+  --font-mono: 'DejaVu Sans Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
 
   --space-1: 4.4px;
   --space-2: 8.8px;
@@ -209,9 +270,26 @@ textarea {
 }
 
 /* Money and weight columns line up only if the digits are tabular. */
+/* Money and weights: proportional type with tabular figures, so columns line up
+   without the whole counter looking like a terminal. */
 .jp-num {
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum';
+}
+
+/* Genuinely machine-readable strings — machine IDs, licence codes, code blocks.
+   Monospaced so 0/O and 1/l cannot be confused when read aloud or typed back. */
+.jp-mono,
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+pre {
+  overflow-x: auto;
 }
 
 ::-webkit-scrollbar {
