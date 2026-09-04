@@ -32,7 +32,7 @@ Windows 10 or 11, 64-bit. No internet needed — ever.
 
 Do these in order. The app will not price anything until step 3 is done.
 
-**1. Shop details** — *Settings (F9 is not used; click Settings in the sidebar)*
+**1. Shop details** — *Settings (click it in the sidebar; it has no F-key, because F9 finalises a sale)*
 Shop name, address, phone. These print at the top of every bill.
 Also set **"Lock the counter after"** — the app returns to the sign-in screen
 after this many idle minutes. `10` is sensible. `0` turns it off.
@@ -184,6 +184,20 @@ node scripts/license-sign.mjs <machineId> 2027-01-01
 ```
 
 Send the printed code to the shop.
+
+## Testing a build
+
+Launch `dist\win-unpacked\Jewel POS.exe`, or silent-install with
+`"Jewel POS Setup 1.0.0.exe" /S /D=C:\some\path`.
+
+A booted app leaves proof in `%APPDATA%\jewel-pos\`: `data\shop.db` plus a
+`pre-migration` backup. If that folder is missing, the app did not start.
+
+> **Gotcha:** if `ELECTRON_RUN_AS_NODE` is set in your shell, *any* Electron app
+> exits instantly with code 0 and no window — it runs the binary as plain Node.
+> It looks exactly like a broken build. Check it first:
+> `echo $env:ELECTRON_RUN_AS_NODE` (PowerShell). Clear with
+> `Remove-Item Env:\ELECTRON_RUN_AS_NODE`.
 
 ## Code signing (recommended)
 
