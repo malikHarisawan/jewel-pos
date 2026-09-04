@@ -130,7 +130,7 @@ export function KarigarScreen() {
               >
                 Raw metal with him
               </div>
-              <div className="jp-num" style={{ fontFamily: 'var(--font-heading)', fontSize: 20 }}>
+              <div className="jp-figure" style={{ fontSize: 20 }}>
                 {gu(a.holdingMg)}
               </div>
               <div className="jp-num" style={{ fontSize: 11.5, opacity: 0.55 }}>

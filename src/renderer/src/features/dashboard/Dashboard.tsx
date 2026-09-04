@@ -167,10 +167,7 @@ export function Dashboard() {
           >
             <div className="jp-kicker">{k.k}</div>
             <div
-              className="jp-num"
-              style={{
-                fontFamily: 'var(--font-heading)',
-                fontSize: 26,
+              className="jp-figure" style={{ fontSize: 26,
                 lineHeight: 1.05,
                 wordBreak: 'break-word',
               }}

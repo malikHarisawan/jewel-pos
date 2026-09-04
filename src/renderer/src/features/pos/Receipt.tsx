@@ -147,7 +147,7 @@ function ReceiptBody({
           >
             Sales invoice
           </div>
-          <div className="jp-num" style={{ fontFamily: 'var(--font-heading)', fontSize: 19 }}>
+          <div className="jp-figure" style={{ fontSize: 19 }}>
             {inv.docNumber ?? '—'}
           </div>
           <div className="jp-num" style={{ fontSize: 11, opacity: 0.7 }}>

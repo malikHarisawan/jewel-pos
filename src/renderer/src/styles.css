@@ -172,6 +172,13 @@
   --radius-md: 16px;
   --radius-lg: 28px;
 
+  /* Motion. Fast enough that the counter never waits on the UI, slow enough
+     that a state change reads as a response rather than a jump. The easing is
+     a gentle ease-out: quick to start, settling at the end. */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur-1: 120ms; /* colour/opacity on small controls */
+  --dur-2: 180ms; /* surfaces, rows, shadows */
+
   /* Elevation — derived from the ground: soft ink-tinted shadows. */
   --shadow-sm: 0 1px 2px color-mix(in srgb, #2e2b25 14%, transparent);
   --shadow-md: 0 3px 10px color-mix(in srgb, #2e2b25 16%, transparent);
@@ -189,6 +196,17 @@
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+/* Someone who has asked the OS for less motion gets none of it. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
 
 body {
@@ -209,21 +227,26 @@ h5,
 h6 {
   font-family: var(--font-heading);
   font-weight: var(--font-heading-weight);
-  line-height: 1.12;
-  letter-spacing: -0.015em;
+  line-height: 1.16;
+  /* Lora's default fit is comfortable at text sizes; large headings want a
+     touch of negative tracking to stop them looking loose. Serifs need less
+     of it than a geometric sans, so this is gentler than the old -0.015em. */
+  letter-spacing: -0.008em;
   margin: 0 0 var(--space-2);
 }
 h1 {
-  font-size: 42px;
+  font-size: 36px;
 }
+/* h2 titles every screen. At 32px in a serif it read as a magazine headline
+   over a dense working screen; 26px keeps the authority without shouting. */
 h2 {
-  font-size: 32px;
+  font-size: 26px;
 }
 h3 {
-  font-size: 25px;
+  font-size: 21px;
 }
 h4 {
-  font-size: 20px;
+  font-size: 18px;
 }
 h5 {
   font-size: 16px;
@@ -269,12 +292,34 @@ textarea {
   background: color-mix(in srgb, var(--color-accent) 30%, transparent);
 }
 
-/* Money and weight columns line up only if the digits are tabular. */
-/* Money and weights: proportional type with tabular figures, so columns line up
-   without the whole counter looking like a terminal. */
+/* Money and weights.
+ *
+ * MEASURED: neither Lora nor Poppins ships tabular figures, so `tnum` alone is
+ * a no-op on them and every rupee column drifts ("1" is ~7% narrower than "8").
+ * Listing the mono face FIRST borrows only its digits and punctuation — the
+ * surrounding words still fall through to the body face, because a font stack
+ * resolves per character. Columns line up, and the screen does not turn into a
+ * terminal. `tnum` is kept for any face that does have it. */
 .jp-num {
+  font-family: var(--font-mono), var(--font-body);
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum';
+  /* DejaVu Mono runs a little large next to Poppins at the same px. */
+  font-size: 0.96em;
+  letter-spacing: -0.01em;
+}
+
+/* Headline money — the big KPI figures on the dashboard, register and udhaar
+ * screens. These were set inline in the heading serif, which overrode .jp-num
+ * and reintroduced the column drift at the size where it shows most. Same
+ * fixed-width digits as .jp-num, just larger and tighter. */
+.jp-figure {
+  font-family: var(--font-mono), var(--font-body);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
 }
 
 /* Genuinely machine-readable strings — machine IDs, licence codes, code blocks.
@@ -333,8 +378,10 @@ pre {
   gap: 6px;
   cursor: pointer;
   text-decoration: none;
-  font-family: var(--font-heading);
-  font-weight: var(--font-heading-weight);
+  /* Body face, not the heading serif: a button is UI, not editorial, and Lora
+     at 600 on every control reads heavy. This also matches antd's buttons. */
+  font-family: var(--font-body);
+  font-weight: 500;
   font-size: 14px;
   line-height: 1.2;
   color: var(--color-text);
@@ -342,6 +389,17 @@ pre {
   border: 1px solid transparent;
   padding: var(--space-2) calc(var(--space-3) * 1.2);
   border-radius: 999px;
+  transition:
+    background-color var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease),
+    box-shadow var(--dur-1) var(--ease),
+    transform var(--dur-1) var(--ease);
+}
+/* A press should be felt. 1px is enough to register as a physical response
+   without the control appearing to move on the page. */
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
 }
 .btn svg {
   display: block;
@@ -353,9 +411,14 @@ pre {
 .btn-primary {
   background: var(--color-accent);
   color: var(--color-bg);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-accent-900) 22%, transparent);
 }
 .btn-primary:hover:not(:disabled) {
   background: var(--color-accent-600);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--color-accent-900) 28%, transparent);
+}
+.btn-primary:active:not(:disabled) {
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-accent-900) 26%, transparent);
 }
 .btn-primary:active:not(:disabled) {
   background: var(--color-accent-700);
@@ -408,13 +471,20 @@ pre {
   background: var(--color-surface);
   border: 1px solid var(--color-divider);
   border-radius: 999px;
+  transition:
+    border-color var(--dur-1) var(--ease),
+    box-shadow var(--dur-1) var(--ease),
+    background-color var(--dur-1) var(--ease);
 }
 .input:hover {
   border-color: color-mix(in srgb, var(--color-text) 45%, transparent);
 }
+/* A focused field gets a soft accent halo instead of only a border-colour
+   change — clearer at a glance on a busy counter screen. */
 .input:focus-visible {
   border-color: var(--color-accent);
-  outline-offset: 0;
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
 textarea.input {
   min-height: 90px;
@@ -442,6 +512,10 @@ textarea.input {
   flex: none;
   border-radius: 50%;
   border: 1.5px solid var(--color-divider);
+  transition:
+    border-color var(--dur-1) var(--ease),
+    background-color var(--dur-1) var(--ease),
+    box-shadow var(--dur-1) var(--ease);
 }
 .radio:hover .dot {
   border-color: var(--color-accent);
@@ -468,6 +542,9 @@ textarea.input {
   padding: 7px 12px;
   font-size: 13px;
   cursor: pointer;
+  transition:
+    background-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease);
 }
 .seg-opt + .seg-opt {
   border-left: 1px solid var(--color-divider);
@@ -534,6 +611,11 @@ textarea.input {
   background: var(--color-surface);
   border-radius: 24px;
   padding: 18px 20px;
+  /* A hairline catches the light at the top edge, so panels read as raised
+     surfaces rather than flat colour fills. */
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 40%, transparent),
+    var(--shadow-sm);
 }
 /* Small uppercase heading that titles a panel or a form section. */
 .jp-kicker {
@@ -591,6 +673,9 @@ textarea.input {
 .table td {
   padding: var(--space-2);
   border-bottom: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
+}
+.table tbody tr {
+  transition: background-color var(--dur-1) var(--ease);
 }
 .table tbody tr:hover {
   background: color-mix(in srgb, var(--color-text) 4%, transparent);
@@ -659,6 +744,9 @@ textarea.input {
   cursor: pointer;
   color: inherit;
 }
+.jp-rowbtn {
+  transition: background-color var(--dur-1) var(--ease);
+}
 .jp-rowbtn:hover {
   background: color-mix(in srgb, var(--color-text) 6%, transparent);
 }
@@ -703,15 +791,74 @@ textarea.input {
   border: 1px solid color-mix(in srgb, var(--color-bg) 20%, transparent);
   background: color-mix(in srgb, var(--color-bg) 6%, transparent);
   color: var(--color-bg);
-  font-family: var(--font-heading);
+  /* Tabular body figures, not the serif: keypad digits should read as keys on a
+     device, and equal-width digits stop the pad shifting between 1 and 8. */
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
   font-size: 19px;
   cursor: pointer;
+  transition:
+    background-color var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    transform var(--dur-1) var(--ease);
+}
+.jp-key:active:not(:disabled) {
+  transform: translateY(1px);
 }
 .jp-key:hover:not(:disabled) {
   background: color-mix(in srgb, var(--color-bg) 16%, transparent);
 }
 .jp-key:active:not(:disabled) {
   background: color-mix(in srgb, var(--color-bg) 24%, transparent);
+}
+
+/* Sidebar navigation. The most-clicked control in the app, so it gets a real
+   hover, a settled selected state, and a press response. */
+.jp-nav {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  border: 0;
+  text-align: start;
+  padding: 9px 10px;
+  border-radius: 14px;
+  font-size: 13.5px;
+  font-family: var(--font-body);
+  font-weight: 500;
+  background: transparent;
+  color: var(--color-bg);
+  cursor: pointer;
+  transition:
+    background-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease),
+    transform var(--dur-1) var(--ease);
+}
+.jp-nav:hover:not(:disabled):not([aria-current='page']) {
+  background: color-mix(in srgb, var(--color-bg) 12%, transparent);
+}
+.jp-nav:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.jp-nav[aria-current='page'] {
+  background: var(--color-accent);
+  color: var(--jp-ink);
+  box-shadow: 0 2px 8px color-mix(in srgb, #000 22%, transparent);
+}
+/* A screen this role cannot open reads as locked, not as a dead control. */
+.jp-nav:disabled {
+  color: color-mix(in srgb, var(--color-bg) 38%, transparent);
+  cursor: not-allowed;
+}
+/* The F-key hint recedes until the row is hovered. */
+.jp-nav .jp-navkey {
+  font-size: 10px;
+  opacity: 0.4;
+  transition: opacity var(--dur-1) var(--ease);
+}
+.jp-nav:hover .jp-navkey {
+  opacity: 0.75;
 }
 
 /* ── antd bridge ───────────────────────────────────────────────────────── */

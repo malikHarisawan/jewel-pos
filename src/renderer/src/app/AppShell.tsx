@@ -354,29 +354,11 @@ export function AppShell() {
                 return (
                   <button
                     key={n.key}
+                    className="jp-nav"
                     onClick={() => allowed && navigate(n.path)}
                     disabled={!allowed}
                     aria-current={on ? 'page' : undefined}
                     title={allowed ? undefined : `${role} cannot open ${t(n.labelKey)}`}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 11,
-                      width: '100%',
-                      border: 0,
-                      textAlign: 'start',
-                      padding: '9px 10px',
-                      borderRadius: 14,
-                      cursor: allowed ? 'pointer' : 'not-allowed',
-                      fontSize: 13.5,
-                      fontFamily: 'var(--font-body)',
-                      background: on ? 'var(--color-accent)' : 'transparent',
-                      color: on
-                        ? 'var(--jp-ink)'
-                        : allowed
-                          ? 'var(--color-bg)'
-                          : 'color-mix(in srgb, var(--color-bg) 40%, transparent)',
-                    }}
                   >
                     <svg
                       width="17"
@@ -392,9 +374,7 @@ export function AppShell() {
                       <path d={n.d} />
                     </svg>
                     <span style={{ flex: 1 }}>{t(n.labelKey)}</span>
-                    <span className="jp-num" style={{ fontSize: 10, opacity: 0.45 }}>
-                      {n.fkey}
-                    </span>
+                    <span className="jp-navkey">{n.fkey}</span>
                   </button>
                 );
               })}

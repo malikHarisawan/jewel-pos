@@ -69,13 +69,13 @@ export function CreditScreen() {
       >
         <div>
           <div className="jp-kicker">{t('credit.totalOut')}</div>
-          <div className="jp-num" style={{ fontFamily: 'var(--font-heading)', fontSize: 24 }}>
+          <div className="jp-figure" style={{ fontSize: 24 }}>
             {rs0(outstanding)}
           </div>
         </div>
         <div>
           <div className="jp-kicker">{t('credit.accounts')}</div>
-          <div className="jp-num" style={{ fontFamily: 'var(--font-heading)', fontSize: 24 }}>
+          <div className="jp-figure" style={{ fontSize: 24 }}>
             {rows.filter((d) => d.balancePaisa > 0).length}
           </div>
         </div>

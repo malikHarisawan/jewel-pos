@@ -213,8 +213,7 @@ export function ReturnModal({ invoiceId, docNumber, open, onClose, onDone }: Pro
             <div style={{ textAlign: 'end', minWidth: 150 }}>
               <div className="jp-kicker">{t('returns.totalRefund')}</div>
               <div
-                className="jp-num"
-                style={{ fontFamily: 'var(--font-heading)', fontSize: 24 }}
+                className="jp-figure" style={{ fontSize: 24 }}
               >
                 {rs(refundPaisa)}
               </div>

@@ -721,8 +721,7 @@ export function PosScreen() {
           >
             <span style={{ fontSize: 12, opacity: 0.6 }}>{t('pos.payable')}</span>
             <span
-              className="jp-num"
-              style={{ fontFamily: 'var(--font-heading)', fontSize: 26, textAlign: 'end' }}
+              className="jp-figure" style={{ fontSize: 26, textAlign: 'end' }}
             >
               {rs(finalPayable)}
             </span>
@@ -905,8 +904,7 @@ export function PosScreen() {
             </span>
             {remaining !== 0 && (
               <span
-                className="jp-num"
-                style={{ fontFamily: 'var(--font-heading)', fontSize: 17 }}
+                className="jp-figure" style={{ fontSize: 17 }}
               >
                 {rs(Math.abs(remaining))}
               </span>

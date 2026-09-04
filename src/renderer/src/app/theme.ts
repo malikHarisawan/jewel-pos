@@ -81,6 +81,14 @@ export const antdTheme: ThemeConfig = {
     boxShadowSecondary: '0 12px 32px rgba(46, 43, 37, 0.22)',
 
     controlHeight: 36,
+
+    // antd animates by default; these pin its timing to the --dur/--ease
+    // tokens in styles.css so the hand-rolled controls and the antd ones feel
+    // like one system rather than two.
+    motionUnit: 0.06,
+    motionBase: 0,
+    motionEaseInOut: 'cubic-bezier(0.2, 0, 0, 1)',
+    motionEaseOut: 'cubic-bezier(0.2, 0, 0, 1)',
   },
   components: {
     Button: {

@@ -113,20 +113,20 @@ export function SalesScreen() {
       >
         <div>
           <div className="jp-kicker">{t('sales.takings')}</div>
-          <div className="jp-num" style={{ fontFamily: 'var(--font-heading)', fontSize: 24 }}>
+          <div className="jp-figure" style={{ fontSize: 24 }}>
             {rs0(summary.total)}
           </div>
         </div>
         <div>
           <div className="jp-kicker">{t('sales.billCount')}</div>
-          <div className="jp-num" style={{ fontFamily: 'var(--font-heading)', fontSize: 24 }}>
+          <div className="jp-figure" style={{ fontSize: 24 }}>
             {summary.count}
           </div>
         </div>
         {summary.cancelled > 0 && (
           <div>
             <div className="jp-kicker">{t('sales.cancelled')}</div>
-            <div className="jp-num" style={{ fontFamily: 'var(--font-heading)', fontSize: 24 }}>
+            <div className="jp-figure" style={{ fontSize: 24 }}>
               {summary.cancelled}
             </div>
           </div>

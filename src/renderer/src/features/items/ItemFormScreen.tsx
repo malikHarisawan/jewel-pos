@@ -430,8 +430,7 @@ export function ItemFormScreen() {
                     Net — metal priced
                   </span>
                   <span
-                    className="jp-num"
-                    style={{ fontFamily: 'var(--font-heading)', fontSize: 19, color: 'var(--color-accent-800)' }}
+                    className="jp-figure" style={{ fontSize: 19, color: 'var(--color-accent-800)' }}
                   >
                     {g(netMg)} g
                   </span>
@@ -496,10 +495,7 @@ export function ItemFormScreen() {
                       Margin at today’s rate
                     </div>
                     <div
-                      className="jp-num"
-                      style={{
-                        fontFamily: 'var(--font-heading)',
-                        fontSize: 18,
+                      className="jp-figure" style={{ fontSize: 18,
                         color:
                           preview && costPaisa
                             ? marginPaisa > 0
@@ -568,8 +564,7 @@ export function ItemFormScreen() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
                   <span style={{ fontSize: 12, opacity: 0.6 }}>Sells at</span>
                   <span
-                    className="jp-num"
-                    style={{ fontFamily: 'var(--font-heading)', fontSize: 24, textAlign: 'end' }}
+                    className="jp-figure" style={{ fontSize: 24, textAlign: 'end' }}
                   >
                     {rs(preview.lineTotalPaisa)}
                   </span>
