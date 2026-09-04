@@ -101,6 +101,25 @@ function getContext(): AppContext {
   };
 }
 
+/**
+ * A throw before the first window exists kills the process with no window, no
+ * console and no log — the shop sees the app "not open" and has nothing to send
+ * you. Catch it and show a dialog instead, so a failed launch is always
+ * diagnosable on the shop's own PC.
+ */
+process.on('uncaughtException', (err) => {
+  try {
+    dialog.showErrorBox(
+      'Jewel POS could not start',
+      `${err instanceof Error ? err.stack ?? err.message : String(err)}`,
+    );
+  } catch {
+    // Dialog is unavailable this early; the log line below is the fallback.
+  }
+  console.error('[startup] fatal', err);
+  app.exit(1);
+});
+
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
