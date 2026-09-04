@@ -12,11 +12,27 @@ import type { DB } from '../db/connection.js';
 import type { AuthService, Session } from '../auth/authService.js';
 import type { LicenseService } from '../license/licenseService.js';
 
+/**
+ * Everything a handler may touch. Deliberately platform-neutral: no Electron
+ * type appears here, so the same handlers run behind the LAN HTTP server the
+ * architecture is aimed at (and behind the smoke harness today).
+ */
 export interface AppContext {
   db: DB;
   auth: AuthService;
   license: LicenseService;
   session: Session | null;
+  /**
+   * Host-supplied file locations and lifecycle. Absent when the host has no
+   * concept of them (the HTTP harness), in which case backup endpoints report
+   * that they are unavailable rather than crashing.
+   */
+  platform?: {
+    backupsDir: string;
+    dbPath: string;
+    /** Restart the app. Used after a restore swaps the database file. */
+    relaunch: () => void;
+  };
 }
 
 type Handler<K extends Channel> = (

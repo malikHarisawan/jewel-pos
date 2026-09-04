@@ -83,7 +83,22 @@ function createWindow(): void {
 }
 
 function getContext(): AppContext {
-  return { db, auth, license, session: auth.current() };
+  return {
+    db,
+    auth,
+    license,
+    session: auth.current(),
+    platform: {
+      backupsDir: backupsDir(),
+      dbPath: dbPath(),
+      relaunch: () => {
+        app.relaunch();
+        // Give the reply time to reach the renderer before the process dies,
+        // so the user sees the confirmation rather than a silent restart.
+        setTimeout(() => app.exit(0), 800);
+      },
+    },
+  };
 }
 
 const gotLock = app.requestSingleInstanceLock();

@@ -1,6 +1,6 @@
 /** Concrete handlers for each contract channel. Business logic lives in the
  * services; handlers are thin glue that read from the AppContext. */
-import type { Handlers } from './router.js';
+import type { Handlers, AppContext } from './router.js';
 import { listItems, getItem, createItem, updateItem } from '../services/itemService.js';
 import {
   purchaseIn,
@@ -22,9 +22,7 @@ import { getSummary } from '../services/dashboardService.js';
 import { createParty, listParties } from '../services/partyService.js';
 import { listDebtors, getStatement, recordRepayment } from '../services/creditService.js';
 import { listBackups, backupNow, restoreBackup } from '../db/backup.js';
-import { backupsDir, dbPath } from '../paths.js';
 import { basename } from 'node:path';
-import { app } from 'electron';
 import {
   issueJob,
   receiveJob,
@@ -34,6 +32,12 @@ import {
   rawIntake,
   rawBalances,
 } from '../services/karigarService.js';
+
+/** Backups need real file locations; a host without them cannot serve these. */
+function requirePlatform(ctx: AppContext): NonNullable<AppContext['platform']> {
+  if (!ctx.platform) throw new Error('backups are not available in this environment');
+  return ctx.platform;
+}
 
 export const handlers: Handlers = {
   'system.ping': (_ctx, input) => ({
@@ -183,22 +187,23 @@ export const handlers: Handlers = {
     });
   },
 
-  'backup.list': () => listBackups(backupsDir()),
+  'backup.list': (ctx) => (ctx.platform ? listBackups(ctx.platform.backupsDir) : []),
   'backup.now': async (ctx) => {
-    const res = await backupNow(ctx.db, backupsDir(), 'manual', new Date());
+    const platform = requirePlatform(ctx);
+    const res = await backupNow(ctx.db, platform.backupsDir, 'manual', new Date());
     return { name: basename(res.path), ok: res.ok };
   },
   'backup.restore': (ctx, input) => {
+    const platform = requirePlatform(ctx);
     // Close the live handle BEFORE the file is swapped: on Windows an open
     // handle would either block the copy or leave the app reading a file that
     // no longer matches its page cache.
     ctx.db.pragma('wal_checkpoint(TRUNCATE)');
     ctx.db.close();
-    const res = restoreBackup(backupsDir(), input.name, dbPath());
+    const res = restoreBackup(platform.backupsDir, input.name, platform.dbPath);
     // The DB the whole process was built around is gone; restart into the
     // restored one rather than trying to rebuild every service in place.
-    app.relaunch();
-    setTimeout(() => app.exit(0), 800);
+    platform.relaunch();
     return res;
   },
 
