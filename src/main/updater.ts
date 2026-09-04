@@ -13,7 +13,17 @@
 import { app } from 'electron';
 import electronUpdater from 'electron-updater';
 
-const { autoUpdater } = electronUpdater;
+/**
+ * `electron-updater` builds its updater the first time `autoUpdater` is READ,
+ * and that constructor calls `app.getVersion()`. Destructuring it at module
+ * scope therefore ran before Electron was ready and crashed the packaged app
+ * on launch — silently, because the crash happened before any window or log
+ * existed. Reading it lazily, inside a function called after `whenReady`, is
+ * what keeps that constructor on the right side of app startup.
+ */
+function updater(): typeof electronUpdater.autoUpdater {
+  return electronUpdater.autoUpdater;
+}
 
 /** The placeholder shipped in electron-builder.yml. Treated as "no feed". */
 const PLACEHOLDER_HOSTS = ['example.com', 'localhost'];
@@ -25,7 +35,7 @@ const PLACEHOLDER_HOSTS = ['example.com', 'localhost'];
  */
 function hasRealFeed(): boolean {
   try {
-    const feed = autoUpdater.getFeedURL();
+    const feed = updater().getFeedURL();
     if (!feed) return false;
     const host = new URL(feed).hostname;
     return !PLACEHOLDER_HOSTS.includes(host);
@@ -46,21 +56,23 @@ export function initAutoUpdate(): void {
     return;
   }
 
-  // Download quietly, but never install behind the counter's back.
-  autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
+  const au = updater();
 
-  autoUpdater.on('update-available', (info) => {
+  // Download quietly, but never install behind the counter's back.
+  au.autoDownload = true;
+  au.autoInstallOnAppQuit = true;
+
+  au.on('update-available', (info) => {
     console.log(`[update] ${info.version} available; downloading in the background`);
   });
-  autoUpdater.on('update-downloaded', (info) => {
+  au.on('update-downloaded', (info) => {
     console.log(`[update] ${info.version} ready; it will install when the app is closed`);
   });
-  autoUpdater.on('error', (err) => {
+  au.on('error', (err) => {
     // An unreachable feed is normal for an offline-first shop: log and move on
     // rather than surfacing a dialog nobody at the counter can act on.
     console.error('[update] check failed', err instanceof Error ? err.message : err);
   });
 
-  void autoUpdater.checkForUpdates();
+  void au.checkForUpdates();
 }
