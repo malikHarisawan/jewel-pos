@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App as AntApp, Modal, Select, Spin } from 'antd';
 import { api } from '../../lib/api.js';
+import { useStickyState } from '../../lib/useStickyState.js';
 import { Screen } from '../../app/AppShell.js';
 import { useSession } from '../../app/session.js';
 import { rs, rs0, stamp, parseRs } from '../../lib/format.js';
@@ -30,7 +31,7 @@ export function CreditScreen() {
   const canTakeMoney = session?.role === 'OWNER' || session?.role === 'MANAGER';
 
   const [openParty, setOpenParty] = useState<Debtor | null>(null);
-  const [showSettled, setShowSettled] = useState(false);
+  const [showSettled, setShowSettled] = useStickyState('credit.showSettled', false);
 
   const debtors = useQuery({
     queryKey: ['credit', 'debtors', showSettled],

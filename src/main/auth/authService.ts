@@ -217,3 +217,28 @@ export async function ensureFirstOwner(
   ).run(defaults.username, defaults.displayName, pinHash);
   return true;
 }
+
+/**
+ * Is the published factory account still usable as shipped?
+ *
+ * The sign-in screen prints "username: owner, PIN: 1234" so a brand-new shop
+ * can get in. The moment that PIN is changed the hint becomes a lie — it names
+ * credentials that no longer work — so the screen has to be able to ask.
+ *
+ * Deliberately narrow: it matches ONLY the seeded owner account, still active
+ * and still flagged as never having chosen its own PIN. A staff member who has
+ * been issued a PIN by the owner also carries must_change_pin=1, but their PIN
+ * was never published, so they are none of this hint's business.
+ */
+export function factoryPinStatus(
+  db: DB,
+  username = 'owner',
+): { anyDefaultPin: boolean; username: string | null } {
+  const row = db
+    .prepare(
+      `SELECT username FROM users
+       WHERE username = ? AND role = 'OWNER' AND is_active = 1 AND must_change_pin = 1`,
+    )
+    .get(username) as { username: string } | undefined;
+  return { anyDefaultPin: row != null, username: row?.username ?? null };
+}

@@ -1,10 +1,12 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Outlet, useNavigate, useLocation } from 'react-router';
 import { useSession } from './session.js';
+import { Logo } from './Logo.js';
 import { useIdleLock } from './useIdleLock.js';
 import { api } from '../lib/api.js';
+import { windowControls } from '../lib/windowControls.js';
 import { formatPKR, TOLA_MG, MG_PER_GRAM } from '../../../shared/units/index.js';
 import type { Role } from '../../../shared/domain/enums.js';
 
@@ -97,6 +99,59 @@ const NAV: NavEntry[] = [
   },
 ];
 
+/** Minimise / maximise / close, drawn in the app's own palette so the window
+ * chrome matches the shell instead of sitting above it as a grey OS strip. */
+function WindowButtons() {
+  const [maximized, setMaximized] = useState(false);
+
+  useEffect(() => {
+    const wc = windowControls;
+    if (!wc) return;
+    void wc.isMaximized().then(setMaximized);
+    return wc.onStateChange((s) => setMaximized(s.maximized));
+  }, []);
+
+  if (!windowControls) return null;
+
+  const btn = (
+    label: string,
+    onClick: () => void,
+    path: ReactNode,
+    danger = false,
+  ) => (
+    <button
+      key={label}
+      className={danger ? 'jp-winbtn jp-winbtn-close' : 'jp-winbtn'}
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+    >
+      <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.4">
+        {path}
+      </svg>
+    </button>
+  );
+
+  return (
+    <div className="jp-nodrag" style={{ display: 'flex', gap: 4, marginInlineStart: 4 }}>
+      {btn('Minimise', () => windowControls!.minimize(), <path d="M2 6h8" />)}
+      {btn(
+        maximized ? 'Restore' : 'Maximise',
+        () => windowControls!.toggleMaximize(),
+        maximized ? (
+          <>
+            <rect x="2" y="4" width="6" height="6" />
+            <path d="M4 4V2h6v6H8" />
+          </>
+        ) : (
+          <rect x="2.5" y="2.5" width="7" height="7" />
+        ),
+      )}
+      {btn('Close', () => windowControls!.close(), <path d="M3 3l6 6M9 3l-6 6" />, true)}
+    </div>
+  );
+}
+
 function LockIcon({ size = 13 }: { size?: number }) {
   return (
     <svg
@@ -113,7 +168,7 @@ function LockIcon({ size = 13 }: { size?: number }) {
   );
 }
 
-/** App chrome: desk background, rounded window, title bar, sidebar, status bar.
+/** App chrome: title bar, sidebar, status bar, filling the window edge to edge.
  * Screens render into the Outlet and supply their own padding. */
 export function AppShell() {
   const { t } = useTranslation();
@@ -167,11 +222,15 @@ export function AppShell() {
         : null;
 
   return (
+    /* The shell fills the window edge to edge. It used to float on the desk
+       background as an inset, rounded card, which cost ~68px of vertical room
+       and capped the width at 1600 — on a counter monitor that is a wasted
+       border around the only thing on screen. The window frame is now the
+       app's own chrome, so the card had nothing left to sit in. */
     <div
       style={{
-        minHeight: '100vh',
-        background: 'var(--jp-desk)',
-        padding: '28px 28px 40px',
+        height: '100vh',
+        display: 'flex',
         fontFamily: 'var(--font-body)',
         color: 'var(--color-text)',
       }}
@@ -179,49 +238,34 @@ export function AppShell() {
       <div
         className="jp-shell"
         style={{
-          width: '100%',
-          maxWidth: 1600,
-          minHeight: 'calc(100vh - 68px)',
-          marginInline: 'auto',
+          flex: 1,
+          minWidth: 0,
           display: 'flex',
           flexDirection: 'column',
           background: 'var(--color-bg)',
-          borderRadius: 20,
           overflow: 'hidden',
-          boxShadow: '0 30px 80px color-mix(in srgb, var(--color-neutral-900) 34%, transparent)',
           position: 'relative',
         }}
       >
         {/* ══ title bar ══ */}
+        {/* Also the window's drag handle now that the frame is gone. Every
+            interactive child opts back out with `jp-nodrag`. */}
         <div
-          className="jp-noprint"
+          className="jp-noprint jp-titlebar"
+          onDoubleClick={() => windowControls?.toggleMaximize()}
           style={{
             height: 44,
             flex: 'none',
             display: 'flex',
             alignItems: 'center',
             gap: 14,
-            padding: '0 14px',
+            padding: '0 8px 0 14px',
             background: 'var(--jp-ink)',
             color: 'var(--color-bg)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 9, whiteSpace: 'nowrap' }}>
-            <div
-              style={{
-                width: 22,
-                height: 22,
-                borderRadius: 999,
-                background: 'var(--color-accent)',
-                display: 'grid',
-                placeItems: 'center',
-                fontFamily: 'var(--font-heading)',
-                fontSize: 12,
-                color: 'var(--jp-ink)',
-              }}
-            >
-              J
-            </div>
+            <Logo size={22} />
             <div style={{ fontFamily: 'var(--font-heading)', fontSize: 14, letterSpacing: '.01em' }}>
               {t('app.title')}
             </div>
@@ -249,6 +293,7 @@ export function AppShell() {
           >
             {trialLabel && (
               <button
+                className="jp-nodrag"
                 onClick={() => navigate('/settings')}
                 style={{
                   display: 'flex',
@@ -302,6 +347,7 @@ export function AppShell() {
               </span>
             </div>
             <button
+              className="jp-nodrag"
               onClick={() => void logout()}
               title={t('common.logout')}
               aria-label={t('common.logout')}
@@ -319,6 +365,8 @@ export function AppShell() {
             >
               <LockIcon />
             </button>
+
+            <WindowButtons />
           </div>
         </div>
 

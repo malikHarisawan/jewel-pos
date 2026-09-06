@@ -47,6 +47,9 @@ export const tokens = {
   // antd surfaces and the hand-rolled ones must not drift apart.
   fontHeading: "'Lora', Georgia, 'Times New Roman', serif",
   fontBody: "'Poppins', system-ui, sans-serif",
+  // antd renders the dense surfaces — tables, selects, form fields — so it
+  // follows the reading face, not the brand face. See --font-ui in styles.css.
+  fontUi: "system-ui, 'Segoe UI', -apple-system, sans-serif",
   fontMono: "'DejaVu Sans Mono', ui-monospace, Consolas, monospace",
 } as const;
 
@@ -70,7 +73,7 @@ export const antdTheme: ThemeConfig = {
     colorBorder: tokens.neutral300,
     colorBorderSecondary: tokens.neutral200,
 
-    fontFamily: tokens.fontBody,
+    fontFamily: tokens.fontUi,
     fontSize: 14,
 
     borderRadius: 16,

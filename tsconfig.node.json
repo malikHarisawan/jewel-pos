@@ -11,7 +11,11 @@
     "src/main/**/*.ts",
     "src/preload/**/*.ts",
     "src/shared/**/*.ts",
+    // Framework-free renderer helpers that the test suite covers directly.
+    // The rest of the renderer stays in tsconfig.web.json.
+    "src/renderer/src/lib/screenState.ts",
     "tests/**/*.ts",
+    "scripts/**/*.mts",
     "electron.vite.config.ts",
     "drizzle.config.ts",
     "vitest.config.ts"

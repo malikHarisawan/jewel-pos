@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App as AntApp, Popconfirm, Select, Spin } from 'antd';
 import { api } from '../../lib/api.js';
+import { useStickyState } from '../../lib/useStickyState.js';
 import { useCatalog } from '../items/useCatalog.js';
 import { useSession } from '../../app/session.js';
 import { Screen } from '../../app/AppShell.js';
@@ -41,8 +42,8 @@ export function StockScreen() {
   const qc = useQueryClient();
   const { message } = AntApp.useApp();
 
-  const [search, setSearch] = useState('');
-  const [nonZeroOnly, setNonZeroOnly] = useState(true);
+  const [search, setSearch] = useStickyState('stock.search', '');
+  const [nonZeroOnly, setNonZeroOnly] = useStickyState('stock.nonZeroOnly', true);
 
   const settings = useQuery({ queryKey: ['settings'], queryFn: () => api['settings.get']({}) });
   const tolaMg = Number(settings.data?.tola_mg) || TOLA_MG;
@@ -284,11 +285,11 @@ interface PanelProps {
 function PurchasePanel({ itemOptions, onPosted }: PanelProps) {
   const { t } = useTranslation();
   const { message } = AntApp.useApp();
-  const [itemId, setItemId] = useState<number | undefined>();
-  const [pieces, setPieces] = useState('1');
-  const [gross, setGross] = useState('');
-  const [less, setLess] = useState('0.000');
-  const [notes, setNotes] = useState('');
+  const [itemId, setItemId] = useStickyState<number | undefined>('stock.in.itemId', undefined);
+  const [pieces, setPieces] = useStickyState('stock.in.pieces', '1');
+  const [gross, setGross] = useStickyState('stock.in.gross', '');
+  const [less, setLess] = useStickyState('stock.in.less', '0.000');
+  const [notes, setNotes] = useStickyState('stock.in.notes', '');
 
   const post = useMutation({
     mutationFn: () =>
@@ -366,12 +367,12 @@ function PurchasePanel({ itemOptions, onPosted }: PanelProps) {
 function AdjustmentPanel({ itemOptions, onPosted }: PanelProps) {
   const { t } = useTranslation();
   const { message } = AntApp.useApp();
-  const [itemId, setItemId] = useState<number | undefined>();
-  const [pieces, setPieces] = useState('0');
-  const [gross, setGross] = useState('');
-  const [less, setLess] = useState('0.000');
-  const [reason, setReason] = useState<string | undefined>();
-  const [notes, setNotes] = useState('');
+  const [itemId, setItemId] = useStickyState<number | undefined>('stock.adj.itemId', undefined);
+  const [pieces, setPieces] = useStickyState('stock.adj.pieces', '0');
+  const [gross, setGross] = useStickyState('stock.adj.gross', '');
+  const [less, setLess] = useStickyState('stock.adj.less', '0.000');
+  const [reason, setReason] = useStickyState<string | undefined>('stock.adj.reason', undefined);
+  const [notes, setNotes] = useStickyState('stock.adj.notes', '');
 
   const post = useMutation({
     mutationFn: () =>

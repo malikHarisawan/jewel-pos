@@ -158,9 +158,15 @@ The code only works on that one PC.
 
 ```
 npm ci
-npm run verify      # typecheck + lint + 172 tests
+npm run verify      # typecheck + lint + 210 tests
+npm run smoke       # drives the real app, walks every screen, writes screenshots
 npm run dist        # -> dist/Jewel POS Setup 1.0.0.exe
 ```
+
+`verify` proves the rules; `smoke` proves the app still opens. The unit tests
+never click a button, so a blank screen or a missing font passes `verify` and
+fails `smoke`. Run both before shipping, and look at the screenshots it leaves
+in `tests/smoke/shots/` — that is the point of them.
 
 ## Licensing a shop
 

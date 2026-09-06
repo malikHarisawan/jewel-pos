@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Logo } from '../../app/Logo.js';
 
 /** Full-screen dark ground shared by the sign-in and licence gates. Both are
  * walls in front of the app rather than screens inside it, so they drop the
@@ -36,22 +37,7 @@ export function Brand({ style, size = 30 }: { style?: CSSProperties; size?: numb
         ...style,
       }}
     >
-      <div
-        style={{
-          width: size,
-          height: size,
-          borderRadius: 999,
-          background: 'var(--color-accent)',
-          display: 'grid',
-          placeItems: 'center',
-          fontFamily: 'var(--font-heading)',
-          fontSize: size * 0.45,
-          color: 'var(--jp-ink)',
-          flex: 'none',
-        }}
-      >
-        J
-      </div>
+      <Logo size={size} />
       <span style={{ fontFamily: 'var(--font-heading)', fontSize: size * 0.66 }}>
         {t('app.title')}
       </span>

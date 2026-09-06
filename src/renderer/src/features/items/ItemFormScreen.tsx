@@ -7,6 +7,8 @@ import { api } from '../../lib/api.js';
 import { useCatalog } from './useCatalog.js';
 import { useSession } from '../../app/session.js';
 import { Screen } from '../../app/AppShell.js';
+import { useStickyForm } from '../../lib/useStickyForm.js';
+import { DraftBanner } from '../../lib/DraftBanner.js';
 import { amount, rs, g, tola } from '../../lib/format.js';
 import { priceSaleLine } from '../../../../shared/pricing/engine.js';
 import {
@@ -17,6 +19,7 @@ import {
   TOLA_MG,
 } from '../../../../shared/units/index.js';
 import type { TaxBase } from '../../../../shared/domain/enums.js';
+import type { Api } from '../../../../shared/contracts/index.js';
 
 interface FormValues {
   trackingMode: 'ITEM' | 'LOT';
@@ -94,6 +97,37 @@ const grid = (cols: string): React.CSSProperties => ({
   gap: 12,
 });
 
+/** The stored record as form values. Shared by the edit prefill and the
+ * "start fresh" button, so discarding a draft lands on exactly the values the
+ * form opened with. */
+function prefillFrom(d: Awaited<ReturnType<Api['items.get']>>): FormValues {
+  return {
+    trackingMode: d.trackingMode,
+    tagNumber: d.tagNumber ?? undefined,
+    name: d.name,
+    productTypeId: d.productTypeId,
+    metalId: d.metalId,
+    purityId: d.purityId,
+    stoneTypeId: d.stoneTypeId,
+    makingTypeId: d.makingTypeId,
+    occasionId: d.occasionId,
+    originKind: d.originKind,
+    grossG: mgToGrams(d.grossMg),
+    lessG: mgToGrams(d.lessMg),
+    makingMode: d.makingMode,
+    makingRateRupees:
+      d.makingMode === 'PCT_OF_METAL' ? d.makingRatePaisa / 100 : paisaToRupees(d.makingRatePaisa),
+    wastagePct: d.wastageBp / 100,
+    hallmarkNumber: d.hallmarkNumber ?? undefined,
+    hallmarkChargeRupees: paisaToRupees(d.hallmarkChargePaisa),
+    locationId: d.locationId,
+    notes: d.notes ?? undefined,
+    openingPieces: 0,
+    labourPaidRupees: d.cost ? paisaToRupees(d.cost.labourPaidPaisa) : undefined,
+    landedCostRupees: d.cost ? paisaToRupees(d.cost.landedCostPaisa) : undefined,
+  };
+}
+
 export function ItemFormScreen() {
   const { t } = useTranslation();
   const { id } = useParams();
@@ -115,36 +149,19 @@ export function ItemFormScreen() {
     enabled: isEdit,
   });
 
+  /* A draft per form identity: the new-item form and each edited item keep
+     their own, so starting a new piece never overwrites an edit in progress. */
+  const draftKey = `items.form.${isEdit ? itemId : 'new'}`;
+  /* Restore only once the form has its real starting values — the catalog
+     defaults, and on edit the fetched record. Refilling before that would be
+     overwritten by the prefill below. */
+  const sticky = useStickyForm<FormValues>(draftKey, form, {
+    enabled: !catalog.isLoading && (!isEdit || existing.data != null),
+  });
+
   // Prefill on edit.
   useEffect(() => {
-    if (existing.data) {
-      const d = existing.data;
-      form.setFieldsValue({
-        trackingMode: d.trackingMode,
-        tagNumber: d.tagNumber ?? undefined,
-        name: d.name,
-        productTypeId: d.productTypeId,
-        metalId: d.metalId,
-        purityId: d.purityId,
-        stoneTypeId: d.stoneTypeId,
-        makingTypeId: d.makingTypeId,
-        occasionId: d.occasionId,
-        originKind: d.originKind,
-        grossG: mgToGrams(d.grossMg),
-        lessG: mgToGrams(d.lessMg),
-        makingMode: d.makingMode,
-        makingRateRupees:
-          d.makingMode === 'PCT_OF_METAL' ? d.makingRatePaisa / 100 : paisaToRupees(d.makingRatePaisa),
-        wastagePct: d.wastageBp / 100,
-        hallmarkNumber: d.hallmarkNumber ?? undefined,
-        hallmarkChargeRupees: paisaToRupees(d.hallmarkChargePaisa),
-        locationId: d.locationId,
-        notes: d.notes ?? undefined,
-        openingPieces: 0,
-        labourPaidRupees: d.cost ? paisaToRupees(d.cost.labourPaidPaisa) : undefined,
-        landedCostRupees: d.cost ? paisaToRupees(d.cost.landedCostPaisa) : undefined,
-      });
-    }
+    if (existing.data) form.setFieldsValue(prefillFrom(existing.data));
   }, [existing.data, form]);
 
   const grossG = Form.useWatch('grossG', form) ?? 0;
@@ -246,6 +263,8 @@ export function ItemFormScreen() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['items'] });
       void qc.invalidateQueries({ queryKey: ['dashboard'] });
+      // The work is on disk now, so the in-progress copy has done its job.
+      sticky.clear();
       message.success(isEdit ? t('items.saved') : t('items.created'));
       navigate('/items');
     },
@@ -291,7 +310,14 @@ export function ItemFormScreen() {
       subtitle="Stock changes only ever happen through the ledger — the opening figure below posts one movement"
       actions={
         <>
-          <button className="btn btn-secondary" onClick={() => navigate('/items')}>
+          <button
+            className="btn btn-secondary"
+            onClick={() => {
+              // Cancel means discard — leaving by the sidebar keeps the draft.
+              sticky.clear();
+              navigate('/items');
+            }}
+          >
             {t('common.cancel')}
           </button>
           <button
@@ -304,6 +330,17 @@ export function ItemFormScreen() {
         </>
       }
     >
+      {sticky.restored && (
+        <DraftBanner
+          onDiscard={() => {
+            sticky.clear();
+            /* Back to the real starting point: the blank form for a new piece,
+               the stored record when editing — not merely an empty form. */
+            form.resetFields();
+            if (existing.data) form.setFieldsValue(prefillFrom(existing.data));
+          }}
+        />
+      )}
       <Form<FormValues>
         form={form}
         layout="vertical"
@@ -318,6 +355,7 @@ export function ItemFormScreen() {
           openingPieces: 1,
           locationId: c.locations[0]?.id,
         }}
+        onValuesChange={sticky.onValuesChange}
         onFinish={(v) => save.mutate(v)}
       >
         <div
@@ -482,33 +520,66 @@ export function ItemFormScreen() {
             {/* Cost and margin are hidden by role, not merely disabled — a
                 manager never sees the number at all. */}
             {isOwner && (
-              <Section title="Owner only — cost & profit" dark>
-                <div style={{ ...grid('1fr 1fr 1fr'), alignItems: 'end' }}>
-                  <Form.Item name="landedCostRupees" label={t('items.field.landedCost')}>
+              <Section
+                title={t('items.section.cost')}
+                hint={t('items.costHint')}
+                dark
+              >
+                <div style={{ ...grid('1fr 1fr'), alignItems: 'start' }}>
+                  <Form.Item
+                    name="landedCostRupees"
+                    label={t('items.field.landedCost')}
+                    extra={t('items.field.landedCostHint')}
+                  >
                     <InputNumber className="jp-num" min={0} step={1} style={{ width: '100%' }} />
                   </Form.Item>
-                  <Form.Item name="labourPaidRupees" label={t('items.field.labourPaid')}>
+                  <Form.Item
+                    name="labourPaidRupees"
+                    label={t('items.field.labourPaid')}
+                    extra={t('items.field.labourPaidHint')}
+                  >
                     <InputNumber className="jp-num" min={0} step={1} style={{ width: '100%' }} />
                   </Form.Item>
-                  <div style={{ paddingBottom: 24 }}>
-                    <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 4 }}>
-                      Margin at today’s rate
-                    </div>
-                    <div
-                      className="jp-figure" style={{ fontSize: 18,
-                        color:
-                          preview && costPaisa
-                            ? marginPaisa > 0
-                              ? 'var(--color-accent-2-300)'
-                              : 'var(--color-accent-300)'
-                            : 'inherit',
-                      }}
-                    >
-                      {preview && costPaisa
-                        ? `${rs(marginPaisa)} · ${Math.round((marginPaisa / preview.lineTotalPaisa) * 1000) / 10}%`
-                        : '—'}
-                    </div>
+                </div>
+
+                {/* Profit reads as its own settled row rather than a third
+                    input-shaped column — it is an output, and the empty state
+                    has to say which input is still missing. */}
+                <div
+                  style={{
+                    marginTop: 4,
+                    padding: '12px 14px',
+                    borderRadius: 16,
+                    background: 'color-mix(in srgb, var(--color-bg) 8%, transparent)',
+                    border: '1px solid color-mix(in srgb, var(--color-bg) 16%, transparent)',
+                  }}
+                >
+                  <div style={{ fontSize: 11, opacity: 0.65, marginBottom: 4 }}>
+                    {t('items.margin.label')}
                   </div>
+                  {preview && costPaisa ? (
+                    <>
+                      <div
+                        className="jp-figure"
+                        style={{
+                          fontSize: 20,
+                          color:
+                            marginPaisa > 0
+                              ? 'var(--color-accent-2-300)'
+                              : 'var(--color-accent-300)',
+                        }}
+                      >
+                        {`${rs(marginPaisa)} · ${Math.round((marginPaisa / preview.lineTotalPaisa) * 1000) / 10}%`}
+                      </div>
+                      <div style={{ fontSize: 11, opacity: 0.5, marginTop: 4 }}>
+                        {t('items.margin.hint')}
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ fontSize: 12.5, opacity: 0.55 }}>
+                      {costPaisa ? t('items.margin.needRate') : t('items.margin.needCost')}
+                    </div>
+                  )}
                 </div>
               </Section>
             )}

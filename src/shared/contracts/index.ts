@@ -47,6 +47,19 @@ export const LogoutOutput = z.object({ ok: z.boolean() });
 
 export const MeOutput = SessionSchema.nullable();
 
+/** Whether any account is still on the PIN it shipped with.
+ *
+ * The sign-in screen prints the factory credentials so a new shop can get in.
+ * Once those are changed the hint is not merely useless, it is WRONG — it names
+ * a PIN that no longer works. The renderer cannot know this on its own, and it
+ * must not guess: the answer comes from the database. */
+export const FactoryPinOutput = z.object({
+  /** True only while an active account still holds its issued PIN. */
+  anyDefaultPin: z.boolean(),
+  /** The username to show, when there is exactly one such account. */
+  username: z.string().nullable(),
+});
+
 export const PurityDTO = z.object({
   id: z.number().int(),
   metalId: z.number().int(),
@@ -579,6 +592,17 @@ export const RestoreBackupOutput = z.object({
   safetyCopy: z.string(),
 });
 
+/** A full-database CSV dump: readable snapshot, not a restorable backup. */
+export const ExportedTableDTO = z.object({
+  table: z.string(),
+  rows: z.number().int(),
+});
+export const ExportCsvOutput = z.object({
+  folder: z.string(),
+  tables: z.array(ExportedTableDTO),
+  totalRows: z.number().int(),
+});
+
 // ---- parties (customers / suppliers / karigars) ---------------------------
 
 export const PartyKindSchema = z.enum(PARTY_KINDS);
@@ -703,6 +727,10 @@ export const SettingsDTO = z.object({
   /** Whole-percent discount ceilings, enforced server-side per role. */
   max_discount_pct_salesman: z.string(),
   max_discount_pct_manager: z.string(),
+  /** '1' | '0' — closing the window hides to the tray instead of quitting. */
+  close_to_tray: z.string(),
+  /** '1' | '0' — launch with Windows. Off unless the shop opts in. */
+  launch_at_startup: z.string(),
 });
 export const UpdateSettingsInput = z.object({
   shop_name: z.string().optional(),
@@ -715,6 +743,8 @@ export const UpdateSettingsInput = z.object({
   idle_lock_minutes: z.string().optional(),
   max_discount_pct_salesman: z.string().optional(),
   max_discount_pct_manager: z.string().optional(),
+  close_to_tray: z.enum(['0', '1']).optional(),
+  launch_at_startup: z.enum(['0', '1']).optional(),
 });
 
 // ---- user management ------------------------------------------------------
@@ -798,6 +828,10 @@ export const contract = {
   'auth.login': { input: LoginInput, output: SessionSchema, public: true },
   'auth.logout': { input: z.object({}), output: LogoutOutput },
   'auth.me': { input: z.object({}), output: MeOutput, public: true },
+  // Public by necessity: it is read BEFORE anyone can sign in. It leaks no
+  // secret — it reports only whether the published default is still live, which
+  // is exactly what the hint already tells anyone looking at the screen.
+  'auth.factoryPin': { input: z.object({}), output: FactoryPinOutput, public: true },
   'catalog.purities': { input: z.object({}), output: ListPuritiesOutput },
   'catalog.all': { input: z.object({}), output: CatalogOutput },
   'items.list': { input: ListItemsInput, output: ListItemsOutput },
@@ -871,6 +905,9 @@ export const contract = {
     output: RestoreBackupOutput,
     roles: ['OWNER'],
   },
+  // A CSV dump contains every table in plain text, so it is owner-only for the
+  // same reason backups are.
+  'export.csv': { input: z.object({}), output: ExportCsvOutput, roles: ['OWNER'] },
   'parties.list': { input: ListPartiesInput, output: ListPartiesOutput },
   // A salesman can register a walk-in customer — a credit sale to a first-time
   // buyer must not require fetching the owner.

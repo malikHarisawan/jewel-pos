@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Jewel POS">
+  <!-- Brilliant-cut gem, viewed face-on: table, crown facets, pavilion.
+       Drawn from the shop's own palette so the mark and the app agree. -->
+  <defs>
+    <linearGradient id="crown" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f6a06b"/>
+      <stop offset="1" stop-color="#c67139"/>
+    </linearGradient>
+    <linearGradient id="pav" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c67139"/>
+      <stop offset="1" stop-color="#8c491a"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="#201e1d"/>
+  <g transform="translate(128 132)">
+    <!-- pavilion: the deep V below the girdle -->
+    <path d="M-72-34 L72-34 L0 86 Z" fill="url(#pav)"/>
+    <!-- crown: the band above the girdle -->
+    <path d="M-72-34 L-44-74 L44-74 L72-34 Z" fill="url(#crown)"/>
+    <!-- table: the flat top face, lifted so it reads at 16px -->
+    <path d="M-44-74 L44-74 L28-34 L-28-34 Z" fill="#ffe1d0"/>
+    <!-- two facet lines: the minimum that says "cut stone" and survives 32px -->
+    <path d="M-28-34 L0 86 L28-34" fill="none" stroke="#201e1d" stroke-width="7"
+          stroke-opacity=".38" stroke-linejoin="round"/>
+    <path d="M-72-34 L72-34" stroke="#201e1d" stroke-width="7" stroke-opacity=".28"/>
+  </g>
+</svg>

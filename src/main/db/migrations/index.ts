@@ -15,6 +15,7 @@ import sql0006 from './0006_must_change_pin.sql?raw';
 import sql0007 from './0007_returns.sql?raw';
 import sql0008 from './0008_audit_return_action.sql?raw';
 import sql0009 from './0009_party_ledger.sql?raw';
+import sql0010 from './0010_tray_startup.sql?raw';
 
 export interface Migration {
   version: number;
@@ -32,6 +33,7 @@ export const MIGRATIONS: Migration[] = [
   { version: 7, name: '0007_returns', sql: sql0007 },
   { version: 8, name: '0008_audit_return_action', sql: sql0008 },
   { version: 9, name: '0009_party_ledger', sql: sql0009 },
+  { version: 10, name: '0010_tray_startup', sql: sql0010 },
 ];
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

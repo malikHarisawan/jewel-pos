@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { App as AntApp, Form, Input, InputNumber, Select, Spin } from 'antd';
+import { App as AntApp, Form, Input, InputNumber, Select, Spin, Switch } from 'antd';
 import { api } from '../../lib/api.js';
 import { useSession } from '../../app/session.js';
 import { Screen } from '../../app/AppShell.js';
@@ -31,10 +31,12 @@ export function SettingsScreen() {
         }}
       >
         <ShopPanel canManage={canManage} />
+        <DesktopPanel canManage={canManage} />
         <SalePanel canManage={canManage} />
         {isOwner && <DiscountPanel />}
         <ChangePinPanel />
         {isOwner && <BackupPanel />}
+        {isOwner && <ExportPanel />}
         {isOwner && (
           <div style={{ gridColumn: '1 / -1' }}>
             <UsersPanel />
@@ -119,6 +121,81 @@ function ShopPanel({ canManage }: { canManage: boolean }) {
         )}
       </Form>
     </Panel>
+  );
+}
+
+/** How the app behaves on this PC: tray parking and launching with Windows.
+ *
+ * These save on toggle rather than behind a Save button — a switch that needs a
+ * second click to take effect reads as broken. They are per-shop settings held
+ * in the database, so a reinstall keeps them. */
+function DesktopPanel({ canManage }: { canManage: boolean }) {
+  const { message } = AntApp.useApp();
+  const qc = useQueryClient();
+  const settings = useSettings();
+
+  const save = useMutation({
+    mutationFn: (patch: { close_to_tray?: '0' | '1'; launch_at_startup?: '0' | '1' }) =>
+      api['settings.update'](patch),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['settings'] });
+      message.success('Saved');
+    },
+    onError: (e: Error) => message.error(e.message),
+  });
+
+  const toTray = settings.data?.close_to_tray !== '0';
+  const atStartup = settings.data?.launch_at_startup === '1';
+
+  return (
+    <Panel title="This computer" hint="Applies to this PC only.">
+      <Row
+        label="Keep running in the tray"
+        hint="Closing the window parks Jewel POS by the clock instead of shutting it down. Quit from the tray icon to close it fully."
+        checked={toTray}
+        disabled={!canManage || save.isPending}
+        onChange={(v) => save.mutate({ close_to_tray: v ? '1' : '0' })}
+      />
+      <Row
+        label="Start with Windows"
+        hint="Opens automatically when this PC starts, parked in the tray and ready for the first sale."
+        checked={atStartup}
+        disabled={!canManage || save.isPending}
+        onChange={(v) => save.mutate({ launch_at_startup: v ? '1' : '0' })}
+      />
+    </Panel>
+  );
+}
+
+function Row({
+  label,
+  hint,
+  checked,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  checked: boolean;
+  disabled: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        gap: 14,
+        alignItems: 'flex-start',
+        padding: '10px 0',
+        borderTop: '1px solid var(--color-divider)',
+      }}
+    >
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 13.5, fontWeight: 500 }}>{label}</div>
+        <div style={{ fontSize: 11.5, opacity: 0.62, marginTop: 3, lineHeight: 1.5 }}>{hint}</div>
+      </div>
+      <Switch checked={checked} disabled={disabled} onChange={onChange} />
+    </div>
   );
 }
 
@@ -337,6 +414,43 @@ function BackupPanel() {
           </table>
         </div>
       )}
+    </Panel>
+  );
+}
+
+/** Full-database CSV export.
+ *
+ * Sits next to Backups because both are "get my data out", but the hint keeps
+ * the difference explicit: a backup is restorable and this is not. Owner-only,
+ * because the dump contains every customer balance in plain text. */
+function ExportPanel() {
+  const { t } = useTranslation();
+  const { message } = AntApp.useApp();
+
+  const run = useMutation({
+    mutationFn: () => api['export.csv']({}),
+    onSuccess: (res) => {
+      message.success(
+        t('export.done', {
+          tables: res.tables.length,
+          rows: res.totalRows,
+          folder: res.folder,
+        }),
+      );
+    },
+    onError: (e: Error) => message.error(e.message),
+  });
+
+  return (
+    <Panel title={t('export.title')} hint={t('export.hint')}>
+      <button
+        className="btn btn-secondary"
+        onClick={() => run.mutate()}
+        disabled={run.isPending}
+      >
+        {run.isPending ? <Spin size="small" /> : t('export.run')}
+      </button>
+      <div style={{ fontSize: 11.5, opacity: 0.6, marginTop: 10 }}>{t('export.warning')}</div>
     </Panel>
   );
 }

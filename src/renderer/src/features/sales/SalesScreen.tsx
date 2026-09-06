@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Spin } from 'antd';
 import { api } from '../../lib/api.js';
+import { useStickyState } from '../../lib/useStickyState.js';
 import { Screen } from '../../app/AppShell.js';
 import { Receipt } from '../pos/Receipt.js';
 import { ReturnModal } from './ReturnModal.js';
@@ -41,8 +42,8 @@ const PRESETS: { key: Preset; labelKey: string; from: () => string | null }[] = 
  * reopens bills, never edits them. */
 export function SalesScreen() {
   const { t } = useTranslation();
-  const [preset, setPreset] = useState<Preset>('week');
-  const [search, setSearch] = useState('');
+  const [preset, setPreset] = useStickyState<Preset>('sales.preset', 'week');
+  const [search, setSearch] = useStickyState('sales.search', '');
   const [openId, setOpenId] = useState<number | null>(null);
   // The bill a return is being taken against, if any.
   const [returning, setReturning] = useState<Row | null>(null);

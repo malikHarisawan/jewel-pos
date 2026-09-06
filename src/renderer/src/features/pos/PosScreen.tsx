@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App as AntApp, Select, Spin } from 'antd';
 import { api } from '../../lib/api.js';
+import { useStickyState } from '../../lib/useStickyState.js';
 import { useCatalog } from '../items/useCatalog.js';
 import { useSession } from '../../app/session.js';
 import { Receipt } from './Receipt.js';
@@ -40,25 +41,30 @@ export function PosScreen() {
   const catalog = useCatalog();
   const { session } = useSession();
 
-  const [cart, setCart] = useState<CartLine[]>([]);
-  const [oldGold, setOldGold] = useState<OldGoldLine[]>([]);
-  const [payments, setPayments] = useState<PayLine[]>([{ key: 1, method: 'CASH', rupees: 0 }]);
+  const [cart, setCart] = useStickyState<CartLine[]>('pos.cart', []);
+  const [oldGold, setOldGold] = useStickyState<OldGoldLine[]>('pos.oldGold', []);
+  const [payments, setPayments] = useStickyState<PayLine[]>('pos.payments', [
+    { key: 1, method: 'CASH', rupees: 0 },
+  ]);
   const [receiptId, setReceiptId] = useState<number | null>(null);
-  const [keyCounter, setKeyCounter] = useState(2);
-  const [search, setSearch] = useState('');
+  const [keyCounter, setKeyCounter] = useStickyState('pos.keyCounter', 2);
+  const [search, setSearch] = useStickyState('pos.search', '');
   const [ogOpen, setOgOpen] = useState(false);
   // Who the bill is for. Null is a walk-in, which is fine until the bill goes
   // on credit — then we need to know whose account to charge.
-  const [customerId, setCustomerId] = useState<number | null>(null);
-  const [newCustomer, setNewCustomer] = useState('');
+  const [customerId, setCustomerId] = useStickyState<number | null>('pos.customerId', null);
+  const [newCustomer, setNewCustomer] = useStickyState('pos.newCustomer', '');
   const qc = useQueryClient();
 
   // Price adjustment (all optional). Discount reduces; a custom total overrides.
-  const [discountMode, setDiscountMode] = useState<'RS' | 'PCT'>('RS');
-  const [discountValue, setDiscountValue] = useState<number>(0);
-  const [customTotalRupees, setCustomTotalRupees] = useState<number | null>(null);
+  const [discountMode, setDiscountMode] = useStickyState<'RS' | 'PCT'>('pos.discountMode', 'RS');
+  const [discountValue, setDiscountValue] = useStickyState<number>('pos.discountValue', 0);
+  const [customTotalRupees, setCustomTotalRupees] = useStickyState<number | null>(
+    'pos.customTotal',
+    null,
+  );
   // Whether the cashier has hand-edited payments (turns off exact auto-fill).
-  const [paymentsTouched, setPaymentsTouched] = useState(false);
+  const [paymentsTouched, setPaymentsTouched] = useStickyState('pos.paymentsTouched', false);
 
   // Item picker: in-stock items only.
   const items = useQuery({

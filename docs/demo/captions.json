@@ -1,0 +1,85 @@
+{
+  "captions": [
+    {
+      "at": 1.3,
+      "text": "Sign in with your username and PIN"
+    },
+    {
+      "at": 8.7,
+      "text": "On first run the shop must replace the PIN it was shipped with"
+    },
+    {
+      "at": 16,
+      "text": "The dashboard: today's rate, stock on hand, and what it is worth"
+    },
+    {
+      "at": 19.8,
+      "text": "Post the day's gold rate. Every price follows from it"
+    },
+    {
+      "at": 23.1,
+      "text": "Nothing is sold at a stored price — the rate drives every figure"
+    },
+    {
+      "at": 25.7,
+      "text": "Stock, priced live at the rate you just posted"
+    },
+    {
+      "at": 28.8,
+      "text": "Weight, purity and making charge per piece — no price is ever typed in"
+    },
+    {
+      "at": 32,
+      "text": "Ringing up a sale"
+    },
+    {
+      "at": 34.8,
+      "text": "Scan a tag, or type the item name"
+    },
+    {
+      "at": 40.1,
+      "text": "The bill builds itself: metal + making + wastage, at today’s rate"
+    },
+    {
+      "at": 43.5,
+      "text": "Take the payment"
+    },
+    {
+      "at": 45,
+      "text": "Complete the sale — the receipt prints and stock drops by one"
+    },
+    {
+      "at": 48.1,
+      "text": "The receipt, ready for the customer"
+    },
+    {
+      "at": 52.2,
+      "text": "Every finalised bill, searchable by day"
+    },
+    {
+      "at": 56,
+      "text": "A bill is never edited. A return is posted against it instead"
+    },
+    {
+      "at": 59,
+      "text": "Udhaar: who owes the shop, and what they have paid"
+    },
+    {
+      "at": 62.1,
+      "text": "Balances are built from an append-only ledger — every figure is explainable"
+    },
+    {
+      "at": 65.5,
+      "text": "Shop name, tax, rounding, staff and backups"
+    },
+    {
+      "at": 68.5,
+      "text": "Backups run automatically — on close, and before any upgrade"
+    },
+    {
+      "at": 71.7,
+      "text": "Jewel POS — offline, on one PC, with an audited trail"
+    }
+  ],
+  "recorded": "2026-09-05T10:10:09.064Z"
+}

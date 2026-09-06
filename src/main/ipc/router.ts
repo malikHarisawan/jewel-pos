@@ -29,9 +29,29 @@ export interface AppContext {
    */
   platform?: {
     backupsDir: string;
+    /** Where full-database CSV dumps are written. Separate from backups: these
+     * are readable snapshots and must never appear in the restore list. */
+    exportsDir: string;
     dbPath: string;
     /** Restart the app. Used after a restore swaps the database file. */
     relaunch: () => void;
+    /**
+     * Open a folder inside `exportsDir` in the OS file manager. A CSV dump the
+     * shopkeeper cannot find is a dump that was never taken, so the export
+     * endpoint reveals its output rather than printing a path they would have
+     * to retype. Optional: headless hosts simply omit it.
+     */
+    revealExport?: (folder: string) => void;
+    /**
+     * Push preferences that have an OS-level effect (tray behaviour, the
+     * Windows login item) out to the host after Settings writes them.
+     * Optional: hosts without a desktop shell simply do not supply it.
+     */
+    applyDesktopPrefs?: (prefs: {
+      closeToTray: boolean;
+      launchAtStartup: boolean;
+      shopName: string;
+    }) => void;
   };
 }
 

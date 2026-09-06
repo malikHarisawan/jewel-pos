@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSession } from '../../app/session.js';
+import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api.js';
 import { Brand, GateShell } from './GateShell.js';
 
@@ -11,6 +12,7 @@ import { Brand, GateShell } from './GateShell.js';
 export function ForceChangePinScreen() {
   const { t } = useTranslation();
   const { session, refresh, logout } = useSession();
+  const qc = useQueryClient();
 
   const [currentSecret, setCurrentSecret] = useState('');
   const [newSecret, setNewSecret] = useState('');
@@ -34,6 +36,9 @@ export function ForceChangePinScreen() {
     setError(null);
     try {
       await api['users.changeOwnPin']({ currentSecret, newSecret });
+      // The factory PIN is no longer live, so the sign-in hint that names it
+      // must not come back from cache the next time the counter locks.
+      await qc.invalidateQueries({ queryKey: ['auth', 'factoryPin'] });
       // The main process has already cleared the flag on the live session;
       // re-read it so the gate opens without a second sign-in.
       await refresh();

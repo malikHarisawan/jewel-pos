@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App as AntApp, Select, Spin } from 'antd';
 import { api } from '../../lib/api.js';
+import { useStickyState } from '../../lib/useStickyState.js';
 import { useCatalog } from '../items/useCatalog.js';
 import { useSession } from '../../app/session.js';
 import { Screen } from '../../app/AppShell.js';
@@ -36,9 +37,12 @@ export function RatesScreen() {
   const { message } = AntApp.useApp();
   const catalog = useCatalog();
 
-  const [historyPurity, setHistoryPurity] = useState<number | undefined>();
+  const [historyPurity, setHistoryPurity] = useStickyState<number | undefined>(
+    'rates.historyPurity',
+    undefined,
+  );
   const [purityId, setPurityId] = useState<number | undefined>();
-  const [basis, setBasis] = useState<RateBasis>('PER_TOLA');
+  const [basis, setBasis] = useStickyState<RateBasis>('rates.basis', 'PER_TOLA');
   const [value, setValue] = useState('');
 
   const latest = useQuery({ queryKey: ['rates', 'latest'], queryFn: () => api['rates.latest']({}) });

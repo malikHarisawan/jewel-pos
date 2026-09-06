@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { api } from '../lib/api.js';
+import { clearAllScreenState } from '../lib/screenState.js';
 import type { SessionDTO } from '../../../shared/contracts/index.js';
 
 interface SessionState {
@@ -31,6 +32,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     await api['auth.logout']({});
+    // Carts, drafts and filters are per-person. The idle lock routes here too,
+    // so the next person at the counter never inherits the last one's work.
+    clearAllScreenState();
     setSession(null);
   };
 

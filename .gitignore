@@ -10,3 +10,5 @@ dist/
 backups/
 # licensing private key — MUST never be committed or shipped
 license-private.pem
+tests/smoke/shots/
+docs/demo/*.webm

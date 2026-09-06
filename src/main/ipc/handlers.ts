@@ -1,5 +1,6 @@
 /** Concrete handlers for each contract channel. Business logic lives in the
  * services; handlers are thin glue that read from the AppContext. */
+import { factoryPinStatus } from '../auth/authService.js';
 import type { Handlers, AppContext } from './router.js';
 import { listItems, getItem, createItem, updateItem } from '../services/itemService.js';
 import {
@@ -22,6 +23,7 @@ import { getSummary } from '../services/dashboardService.js';
 import { createParty, listParties } from '../services/partyService.js';
 import { listDebtors, getStatement, recordRepayment } from '../services/creditService.js';
 import { listBackups, backupNow, restoreBackup } from '../db/backup.js';
+import { exportAllToCsv } from '../db/csvExport.js';
 import { basename } from 'node:path';
 import {
   issueJob,
@@ -33,9 +35,10 @@ import {
   rawBalances,
 } from '../services/karigarService.js';
 
-/** Backups need real file locations; a host without them cannot serve these. */
+/** Backups and CSV exports need real file locations; a host without them
+ * cannot serve these. */
 function requirePlatform(ctx: AppContext): NonNullable<AppContext['platform']> {
-  if (!ctx.platform) throw new Error('backups are not available in this environment');
+  if (!ctx.platform) throw new Error('file access is not available in this environment');
   return ctx.platform;
 }
 
@@ -56,6 +59,7 @@ export const handlers: Handlers = {
   },
 
   'auth.me': (ctx) => ctx.auth.current(),
+  'auth.factoryPin': (ctx) => factoryPinStatus(ctx.db),
 
   'catalog.purities': (ctx) => {
     const rows = ctx.db
@@ -207,6 +211,17 @@ export const handlers: Handlers = {
     return res;
   },
 
+  'export.csv': (ctx) => {
+    const platform = requirePlatform(ctx);
+    // Flush the WAL first: rows committed since the last checkpoint live only
+    // in the -wal file, and a dump that silently omits today's sales is worse
+    // than no dump at all.
+    ctx.db.pragma('wal_checkpoint(TRUNCATE)');
+    const res = exportAllToCsv(ctx.db, platform.exportsDir, new Date());
+    platform.revealExport?.(res.folder);
+    return res;
+  },
+
   'parties.list': (ctx, input) => listParties(ctx.db, input),
   'parties.create': (ctx, input) => {
     const session = ctx.auth.requireSession();
@@ -233,7 +248,15 @@ export const handlers: Handlers = {
   'settings.get': (ctx) => getSettings(ctx.db),
   'settings.update': (ctx, input) => {
     const session = ctx.auth.requireSession();
-    return updateSettings(ctx.db, session.userId, input);
+    const next = updateSettings(ctx.db, session.userId, input);
+    // Tray behaviour and the Windows login item are OS state, not just rows:
+    // without this the checkbox saves and nothing actually changes.
+    ctx.platform?.applyDesktopPrefs?.({
+      closeToTray: next.close_to_tray !== '0',
+      launchAtStartup: next.launch_at_startup === '1',
+      shopName: next.shop_name,
+    });
+    return next;
   },
 
   'users.list': (ctx) => ctx.auth.listUsers(),

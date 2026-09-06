@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../../lib/api.js';
 import { useSession } from '../../app/session.js';
 import { Brand, GateShell } from './GateShell.js';
 
@@ -16,6 +18,15 @@ export function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const pinRef = useRef<HTMLInputElement>(null);
+
+  // Only print the factory credentials while they still work. Once the owner
+  // picks their own PIN the hint would be naming a PIN that fails, which reads
+  // as the app being broken. Asked of the database, never assumed here.
+  const factory = useQuery({
+    queryKey: ['auth', 'factoryPin'],
+    queryFn: () => api['auth.factoryPin']({}),
+    staleTime: 0,
+  });
 
   const submit = async (secret: string) => {
     if (!username.trim()) {
@@ -123,9 +134,11 @@ export function LoginScreen() {
             </div>
           )}
 
-          <div style={{ fontSize: 11.5, opacity: 0.45, marginTop: 14, maxWidth: 360 }}>
-            {t('login.hint')}
-          </div>
+          {factory.data?.anyDefaultPin && (
+            <div style={{ fontSize: 11.5, opacity: 0.45, marginTop: 14, maxWidth: 360 }}>
+              {t('login.hint', { username: factory.data.username ?? 'owner' })}
+            </div>
+          )}
         </div>
 
         <div

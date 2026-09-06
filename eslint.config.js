@@ -17,11 +17,18 @@ export default tseslint.config(
     files: [
       'src/main/**/*.ts',
       'src/preload/**/*.ts',
-      'scripts/**/*.{js,mjs}',
+      'scripts/**/*.{js,mjs,mts}',
       '*.{js,mjs,ts}',
-      'tests/**/*.ts',
+      'tests/**/*.{ts,mjs}',
     ],
     languageOptions: { globals: { ...globals.node } },
+  },
+
+  // The UI smoke test is a Node script that also serialises callbacks into the
+  // page via win.evaluate(), so both sets of globals are legitimate here.
+  {
+    files: ['tests/smoke/**/*.mjs'],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
 
   // Renderer runs in the browser.

@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { Spin, Tooltip } from 'antd';
 import { api } from '../../lib/api.js';
+import { useStickyState } from '../../lib/useStickyState.js';
 import { useCatalog } from './useCatalog.js';
 import { useSession } from '../../app/session.js';
 import { Screen } from '../../app/AppShell.js';
@@ -26,7 +27,7 @@ export function ItemListScreen() {
   const catalog = useCatalog();
   const { session } = useSession();
   const isOwner = session?.role === 'OWNER';
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useStickyState('items.search', '');
 
   const items = useQuery({
     queryKey: ['items', 'list', search],
@@ -100,7 +101,7 @@ export function ItemListScreen() {
                 const q = quoteById.get(r.id);
                 return (
                   <tr key={r.id}>
-                    <td style={{ fontSize: 12, opacity: 0.65 }}>{r.tagNumber ?? '—'}</td>
+                    <td data-num style={{ fontSize: 12, opacity: 0.65 }}>{r.tagNumber ?? '—'}</td>
                     <td>
                       <div style={{ fontWeight: 600 }}>{r.name}</div>
                       <div style={{ fontSize: 11, opacity: 0.5 }}>
@@ -118,11 +119,11 @@ export function ItemListScreen() {
                         {r.trackingMode === 'ITEM' ? 'UNIQUE' : 'LOT'}
                       </span>
                     </td>
-                    <td style={{ fontSize: 12.5 }}>{trio(r.grossMg, r.lessMg)}</td>
-                    <td style={{ fontSize: 12.5 }}>
+                    <td data-num style={{ fontSize: 12.5 }}>{trio(r.grossMg, r.lessMg)}</td>
+                    <td data-num style={{ fontSize: 12.5 }}>
                       {r.balancePieces} pc · {gu(r.balanceNetMg)}
                     </td>
-                    <td style={{ fontWeight: 600 }}>
+                    <td data-num style={{ fontWeight: 600 }}>
                       {quotes.isLoading ? (
                         <Spin size="small" />
                       ) : !q || !q.hasRate ? (

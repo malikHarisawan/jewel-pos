@@ -15,6 +15,11 @@ const SETTING_DEFAULTS = {
   idle_lock_minutes: '10',
   max_discount_pct_salesman: '5',
   max_discount_pct_manager: '20',
+  // Closing the window parks the till in the tray rather than shutting it down.
+  close_to_tray: '1',
+  // Off by default: software must never add itself to a machine's startup
+  // without being asked. The shop turns this on from Settings.
+  launch_at_startup: '0',
 } as const;
 
 export type SettingKey = keyof typeof SETTING_DEFAULTS;

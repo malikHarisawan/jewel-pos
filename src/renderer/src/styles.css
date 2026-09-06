@@ -158,7 +158,14 @@
   /* Lora is a text serif, not a display face: headings need real weight to
      hold their own, where Caprasimo carried it by shape alone. */
   --font-heading-weight: 600;
+  /* Poppins is geometric: 'o', 'c', 'e' and 'n' are all within 0.5px of each
+     other at 15px (measured), where a UI face spreads them over ~1.9px. Uniform
+     letter widths flatten word shapes, which is what you actually read at a
+     glance across a counter — so Poppins carries the brand voice in headings,
+     buttons and labels, while dense reading text gets a face built for it. */
   --font-body: 'Poppins', system-ui, sans-serif;
+  /* Rows, tables and long strings: legibility first. */
+  --font-ui: system-ui, 'Segoe UI', -apple-system, sans-serif;
   --font-mono: 'DejaVu Sans Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
 
   --space-1: 4.4px;
@@ -213,10 +220,12 @@ body {
   margin: 0;
   background: var(--color-bg);
   color: var(--color-text);
-  font-family: var(--font-body);
+  font-family: var(--font-ui);
   font-size: 15px;
   line-height: 1.55;
-  font-weight: 400;
+  /* 450 rather than 400: at counter distance the thin weight of a geometric
+     face greys out, and a POS is read in glances, not paragraphs. */
+  font-weight: 450;
 }
 
 h1,
@@ -271,11 +280,15 @@ img {
   display: block;
   max-width: 100%;
 }
+/* Buttons keep the brand face; fields the shop reads and types into do not —
+   a customer name or address is dense text, not a label. */
+button {
+  font-family: var(--font-body);
+}
 input,
 select,
-button,
 textarea {
-  font-family: var(--font-body);
+  font-family: var(--font-ui);
 }
 
 .text-muted {
@@ -292,21 +305,39 @@ textarea {
   background: color-mix(in srgb, var(--color-accent) 30%, transparent);
 }
 
-/* Money and weights.
+/* Money and weights — fixed-width digits so columns line up.
  *
- * MEASURED: neither Lora nor Poppins ships tabular figures, so `tnum` alone is
- * a no-op on them and every rupee column drifts ("1" is ~7% narrower than "8").
- * Listing the mono face FIRST borrows only its digits and punctuation — the
- * surrounding words still fall through to the body face, because a font stack
- * resolves per character. Columns line up, and the screen does not turn into a
- * terminal. `tnum` is kept for any face that does have it. */
+ * MEASURED: the reading face (Segoe UI / system-ui) already ships tabular
+ * figures — "111" and "888" both measure 24.25px at 15px, with or without the
+ * property. So `tnum` alone is enough and no second font is involved.
+ *
+ * This previously borrowed digits from DejaVu Mono, because neither Lora nor
+ * Poppins has tabular figures. That worked on the numbers and broke everything
+ * around them: DejaVu covers the whole Latin range, so item names and words
+ * like "tola" turned monospace and the stock list read like a terminal. Caught
+ * on a screenshot; measurement had said the fix was fine. */
 .jp-num {
-  font-family: var(--font-mono), var(--font-body);
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum';
-  /* DejaVu Mono runs a little large next to Poppins at the same px. */
-  font-size: 0.96em;
-  letter-spacing: -0.01em;
+}
+
+/* A table tagged .jp-num carries numbers in SOME cells, not all of them.
+ * Hand the reading face back to the table by default and let .jp-num on an
+ * individual cell (or a wrapper inside one) opt back into fixed-width digits.
+ * Cells are matched by the `data-num` attribute so markup stays declarative. */
+table.jp-num,
+table.jp-num th,
+table.jp-num td {
+  font-family: var(--font-ui);
+  font-size: 1em;
+  letter-spacing: normal;
+}
+table.jp-num td[data-num],
+table.jp-num th[data-num],
+table.jp-num td .jp-num,
+table.jp-num td .jp-figure {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
 }
 
 /* Headline money — the big KPI figures on the dashboard, register and udhaar
@@ -314,7 +345,6 @@ textarea {
  * and reintroduced the column drift at the size where it shows most. Same
  * fixed-width digits as .jp-num, just larger and tighter. */
 .jp-figure {
-  font-family: var(--font-mono), var(--font-body);
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum';
   font-weight: 500;
@@ -768,6 +798,59 @@ textarea.input {
   color: color-mix(in srgb, var(--color-bg) 45%, transparent);
 }
 
+/* The same treatment for the antd controls the item form uses. Without this an
+   antd field on the ink panel keeps its light-theme label and a cream input
+   body, which reads as a disabled control rather than an editable one. */
+.jp-on-ink .ant-form-item-label > label {
+  color: color-mix(in srgb, var(--color-bg) 72%, transparent) !important;
+  font-size: 11.5px;
+}
+.jp-on-ink .ant-form-item-extra {
+  color: color-mix(in srgb, var(--color-bg) 45%, transparent) !important;
+  font-size: 11px;
+  margin-top: 3px;
+}
+.jp-on-ink .ant-input-number,
+.jp-on-ink .ant-input,
+.jp-on-ink .ant-input-affix-wrapper {
+  background: color-mix(in srgb, var(--color-bg) 10%, transparent) !important;
+  border-color: color-mix(in srgb, var(--color-bg) 25%, transparent) !important;
+  color: var(--color-bg) !important;
+}
+.jp-on-ink .ant-input-number:hover,
+.jp-on-ink .ant-input:hover,
+.jp-on-ink .ant-input-affix-wrapper:hover {
+  border-color: color-mix(in srgb, var(--color-accent-400) 65%, transparent) !important;
+}
+.jp-on-ink .ant-input-number-focused,
+.jp-on-ink .ant-input-number:focus-within,
+.jp-on-ink .ant-input:focus,
+.jp-on-ink .ant-input-affix-wrapper-focused {
+  border-color: var(--color-accent-400) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent-400) 22%, transparent) !important;
+}
+.jp-on-ink .ant-input-number .ant-input-number-input,
+.jp-on-ink .ant-input-number-input {
+  background: transparent !important;
+  color: var(--color-bg) !important;
+}
+.jp-on-ink .ant-input-number-input::placeholder,
+.jp-on-ink .ant-input::placeholder {
+  color: color-mix(in srgb, var(--color-bg) 40%, transparent) !important;
+}
+/* The stepper arrows inherit the light palette and vanish against the ink. */
+.jp-on-ink .ant-input-number-handler-wrap {
+  background: color-mix(in srgb, var(--color-bg) 8%, transparent) !important;
+  border-inline-start-color: color-mix(in srgb, var(--color-bg) 18%, transparent) !important;
+}
+.jp-on-ink .ant-input-number-handler {
+  border-block-start-color: color-mix(in srgb, var(--color-bg) 18%, transparent) !important;
+}
+.jp-on-ink .ant-input-number-handler-up-inner,
+.jp-on-ink .ant-input-number-handler-down-inner {
+  color: color-mix(in srgb, var(--color-bg) 60%, transparent) !important;
+}
+
 /* Toast — bottom-end of the shell, above the status bar. */
 .jp-toast {
   position: absolute;
@@ -878,7 +961,8 @@ textarea.input {
 .ant-tooltip,
 .ant-message,
 .ant-notification {
-  font-family: var(--font-body);
+  /* These carry option lists, table rows and messages — reading surfaces. */
+  font-family: var(--font-ui);
 }
 /* Numeric columns in antd tables get tabular figures, matching .jp-num. */
 .ant-table-cell.jp-num {
@@ -919,4 +1003,45 @@ textarea.input {
     size: A5;
     margin: 8mm;
   }
+}
+
+/* ── frameless window chrome ───────────────────────────────────────────── */
+/* The window has no OS frame, so the app's own title bar is the drag handle
+   and supplies the minimise / maximise / close buttons in the app palette. */
+.jp-titlebar {
+  -webkit-app-region: drag;
+  user-select: none;
+}
+/* Anything clickable inside the bar must opt back out, or the drag region
+   swallows the click. */
+.jp-nodrag,
+.jp-titlebar button {
+  -webkit-app-region: no-drag;
+}
+
+.jp-winbtn {
+  width: 30px;
+  height: 26px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: color-mix(in srgb, var(--color-bg) 72%, transparent);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition:
+    background-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease);
+}
+.jp-winbtn:hover {
+  background: color-mix(in srgb, var(--color-bg) 14%, transparent);
+  color: var(--color-bg);
+}
+.jp-winbtn:active {
+  background: color-mix(in srgb, var(--color-bg) 22%, transparent);
+}
+/* Close reads as the destructive one without shouting until it is hovered. */
+.jp-winbtn-close:hover {
+  background: var(--color-accent-600, #b4482e);
+  color: #fff;
 }

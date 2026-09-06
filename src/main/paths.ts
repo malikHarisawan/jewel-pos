@@ -15,3 +15,8 @@ export function backupsDir(): string {
 export function photosDir(): string {
   return join(dataDir(), 'photos');
 }
+/** CSV dumps live beside backups but in their own tree — they are not
+ * restorable and must never be offered in the restore list. */
+export function exportsDir(): string {
+  return join(app.getPath('userData'), 'exports');
+}

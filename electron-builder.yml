@@ -7,6 +7,10 @@ directories:
 files:
   - out/**/*
   - package.json
+  # The tray icon is loaded at runtime by path, so it has to be inside the
+  # package — buildResources alone only feeds the installer's own artwork.
+  - resources/tray.ico
+  - resources/icon.ico
 # The native modules ship a .node binary that cannot be loaded from inside asar.
 asarUnpack:
   - '**/node_modules/better-sqlite3/**'
