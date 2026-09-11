@@ -1,4 +1,4 @@
-# Jewel POS 1.0.0 — Handover
+# Jewel POS 1.1.0 — Handover
 
 Two parts: what the **shop** needs to know, and what **you** (the vendor) need
 to keep.
@@ -9,7 +9,7 @@ to keep.
 
 ## Installing
 
-1. Double-click **`Jewel POS Setup 1.0.0.exe`**.
+1. Double-click **`Jewel POS Setup 1.1.0.exe`**.
 2. Windows may show a blue "Windows protected your PC" box. Click
    **More info → Run anyway**. (This appears because the installer is not yet
    code-signed. It is safe; see Part B if you want it gone.)
@@ -158,9 +158,9 @@ The code only works on that one PC.
 
 ```
 npm ci
-npm run verify      # typecheck + lint + 210 tests
+npm run verify      # typecheck + lint + 288 tests
 npm run smoke       # drives the real app, walks every screen, writes screenshots
-npm run dist        # -> dist/Jewel POS Setup 1.0.0.exe
+npm run dist        # -> dist/Jewel POS Setup 1.1.0.exe
 ```
 
 `verify` proves the rules; `smoke` proves the app still opens. The unit tests
@@ -194,7 +194,7 @@ Send the printed code to the shop.
 ## Testing a build
 
 Launch `dist\win-unpacked\Jewel POS.exe`, or silent-install with
-`"Jewel POS Setup 1.0.0.exe" /S /D=C:\some\path`.
+`"Jewel POS Setup 1.1.0.exe" /S /D=C:\some\path`.
 
 A booted app leaves proof in `%APPDATA%\jewel-pos\`: `data\shop.db` plus a
 `pre-migration` backup. If that folder is missing, the app did not start.
