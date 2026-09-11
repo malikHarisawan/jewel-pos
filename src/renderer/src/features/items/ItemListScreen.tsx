@@ -65,7 +65,7 @@ export function ItemListScreen() {
   return (
     <Screen
       title={t('nav.items')}
-      subtitle="Price column is live at today’s rate — nothing is stored as a price"
+      subtitle="Your catalogue: one row per piece, and what it is worth right now. Where stock came from is on Purchases."
       actions={
         <>
           <input
@@ -138,13 +138,34 @@ export function ItemListScreen() {
                       <span className={STATUS_CLS[r.status] ?? 'tag tag-neutral'}>{r.status}</span>
                     </td>
                     <td style={{ textAlign: 'end', whiteSpace: 'nowrap' }}>
-                      <button
-                        className="btn btn-ghost"
-                        style={{ fontSize: 12.5 }}
-                        onClick={() => navigate('/pos')}
-                      >
-                        Sell
-                      </button>
+                      {/* Carries the item to the counter. Navigating bare used to
+                          land on an empty POS and the shopkeeper had to search
+                          for the row they had just clicked. POS adds it through
+                          the same path a scan uses, so LOT items and pricing
+                          behave identically. Only sellable stock offers it. */}
+                      {r.status === 'IN_STOCK' &&
+                        (q?.hasRate ? (
+                          <button
+                            className="btn btn-ghost"
+                            style={{ fontSize: 12.5 }}
+                            onClick={() => navigate('/pos', { state: { addItemId: r.id } })}
+                          >
+                            Sell
+                          </button>
+                        ) : (
+                          /* Without a rate the piece cannot be priced, so the
+                             cart would only hold a line reading "No rate".
+                             Say so here, where the fix is one screen away,
+                             rather than after the click. */
+                          <Tooltip title={t('items.noRateHint')}>
+                            <span
+                              className="btn btn-ghost"
+                              style={{ fontSize: 12.5, opacity: 0.4, cursor: 'not-allowed' }}
+                            >
+                              Sell
+                            </span>
+                          </Tooltip>
+                        ))}
                       <button
                         className="btn btn-ghost"
                         style={{ fontSize: 12.5 }}

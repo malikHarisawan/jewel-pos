@@ -12,3 +12,8 @@ backups/
 license-private.pem
 tests/smoke/shots/
 docs/demo/*.webm
+# Generated importer fixtures — reproducible with `npm run samples`, so the
+# binaries stay out of git while docs/samples/README.md (which explains them)
+# stays in.
+docs/samples/*.xlsx
+docs/samples/*.csv

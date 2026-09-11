@@ -72,7 +72,7 @@ Add each piece. Two kinds:
 |---|---|---|
 | **F1** | Dashboard | Today's rate, what is on the shelves, what it is worth |
 | **F2** | Items | Your catalogue |
-| **F3** | Stock | The movement ledger and balances |
+| **F3** | Purchases | Bring stock in, correct it, reverse mistakes |
 | **F4** | Rates | Post today's rate |
 | **F5** | POS | Sell |
 | **F6** | Sales | Every past bill |

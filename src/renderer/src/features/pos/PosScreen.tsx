@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLocation, useNavigate } from 'react-router';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { App as AntApp, Select, Spin } from 'antd';
 import { api } from '../../lib/api.js';
 import { useStickyState } from '../../lib/useStickyState.js';
@@ -53,8 +54,8 @@ export function PosScreen() {
   // Who the bill is for. Null is a walk-in, which is fine until the bill goes
   // on credit — then we need to know whose account to charge.
   const [customerId, setCustomerId] = useStickyState<number | null>('pos.customerId', null);
-  const [newCustomer, setNewCustomer] = useStickyState('pos.newCustomer', '');
-  const qc = useQueryClient();
+  /** Printed on the bill; creates no account. Separate from `customerId`. */
+  const [customerName, setCustomerName] = useStickyState('pos.customerName', '');
 
   // Price adjustment (all optional). Discount reduces; a custom total overrides.
   const [discountMode, setDiscountMode] = useStickyState<'RS' | 'PCT'>('pos.discountMode', 'RS');
@@ -73,6 +74,10 @@ export function PosScreen() {
   });
 
   async function addItem(itemId: number) {
+    // Checked again inside the setCart updaters below. This early return only
+    // avoids the needless quote request; the updater is what actually prevents
+    // a duplicate line, because it sees the live cart rather than whatever this
+    // closure captured when it was created.
     if (cart.some((c) => c.item.id === itemId)) return;
     const item = items.data?.find((i) => i.id === itemId);
     if (!item) return;
@@ -85,10 +90,20 @@ export function PosScreen() {
       const startGrams = 1;
       const q = await api['rates.quoteWeight']({ itemId, netMg: Math.round(startGrams * 1000) });
       if (!q.hasRate) message.warning(t('pos.noRateWarn'));
-      setCart((c) => [
-        ...c,
-        { item, quoteTotalPaisa: q.totalPaisa, hasRate: q.hasRate, sellGrams: startGrams, sellPieces: 1 },
-      ]);
+      setCart((c) =>
+        c.some((x) => x.item.id === itemId)
+          ? c
+          : [
+              ...c,
+              {
+                item,
+                quoteTotalPaisa: q.totalPaisa,
+                hasRate: q.hasRate,
+                sellGrams: startGrams,
+                sellPieces: 1,
+              },
+            ],
+      );
       return;
     }
 
@@ -96,7 +111,11 @@ export function PosScreen() {
     if (!q.hasRate) {
       message.warning(t('pos.noRateWarn'));
     }
-    setCart((c) => [...c, { item, quoteTotalPaisa: q.totalPaisa, hasRate: q.hasRate }]);
+    setCart((c) =>
+      c.some((x) => x.item.id === itemId)
+        ? c
+        : [...c, { item, quoteTotalPaisa: q.totalPaisa, hasRate: q.hasRate }],
+    );
   }
 
   // Per-line re-pricing state. Typing "12.5" used to fire four quotes, and a
@@ -146,6 +165,13 @@ export function PosScreen() {
   }
 
   const rates = useQuery({ queryKey: ['rates', 'latest'], queryFn: () => api['rates.latest']({}) });
+  /** Purity id → label, for naming the exact rate a blocked line is waiting on. */
+  const purityLabel = useMemo(() => {
+    const m = new Map<number, string>();
+    catalog.data?.purities.forEach((p) => m.set(p.id, p.label));
+    return m;
+  }, [catalog.data]);
+
   function latestRatePaisaPerGram(purityId?: number): number | null {
     if (purityId == null) return null;
     return rates.data?.find((r) => r.purityId === purityId)?.ratePaisaPerGram ?? null;
@@ -164,17 +190,6 @@ export function PosScreen() {
   const customers = useQuery({
     queryKey: ['parties', 'CUSTOMER'],
     queryFn: () => api['parties.list']({ kind: 'CUSTOMER', limit: 500 }),
-  });
-
-  const addCustomer = useMutation({
-    mutationFn: (name: string) => api['parties.create']({ kind: 'CUSTOMER', name }),
-    onSuccess: (p) => {
-      void qc.invalidateQueries({ queryKey: ['parties'] });
-      setCustomerId(p.id);
-      setNewCustomer('');
-      message.success(t('pos.customerAdded', { name: p.name }));
-    },
-    onError: (e: Error) => message.error(e.message),
   });
 
   // What this customer already owes, so the counter can see it before agreeing
@@ -258,6 +273,7 @@ export function PosScreen() {
     mutationFn: () =>
       api['sales.checkout']({
         customerId,
+        customerNameText: customerName.trim() || null,
         saleLines: cart.map((c) => {
           const isLot = c.item.trackingMode === 'LOT';
           const netMg = isLot ? Math.round((c.sellGrams ?? 0) * 1000) : c.item.netMg;
@@ -301,6 +317,9 @@ export function PosScreen() {
       setDiscountValue(0);
       setCustomTotalRupees(null);
       setCustomerId(null);
+      // The next customer is a different person; carrying the name over would
+      // print it on their bill.
+      setCustomerName('');
       setPaymentsTouched(false);
       setOgOpen(false);
       void items.refetch();
@@ -314,6 +333,30 @@ export function PosScreen() {
     finalPayable >= 0 &&
     !discountOverLimit &&
     !creditNeedsCustomer;
+
+  // Arriving from the Items screen's "Sell" button, which passes the row's id in
+  // router state. It is added through addItem — the same path a scan takes — so
+  // pricing, LOT handling and the duplicate guard all behave identically. The
+  // state is cleared immediately after, or going back to the cart later would
+  // silently re-add the item.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const pendingItemId = (location.state as { addItemId?: number } | null)?.addItemId;
+  // `items.data` is a dependency (addItem reads the list), so this effect reruns
+  // whenever that query refetches — which added the same piece a second time.
+  // A ref records which arrival has been handled, so one click adds one line no
+  // matter how often the item list settles.
+  const handledArrival = useRef<number | null>(null);
+  useEffect(() => {
+    if (pendingItemId == null) return;
+    if (!items.data) return; // addItem reads from this list; wait for it.
+    if (handledArrival.current === pendingItemId) return;
+    handledArrival.current = pendingItemId;
+    navigate('.', { replace: true, state: null });
+    void addItem(pendingItemId);
+    // addItem is intentionally not a dependency: it is recreated every render,
+    // and the ref above is what makes this run once per arrival.
+  }, [pendingItemId, items.data]);
 
   // Type-ahead results. The scanner types a tag and presses Enter; the top match
   // is what gets added, so the whole flow is keyboard-only.
@@ -606,7 +649,18 @@ export function PosScreen() {
                       className="jp-num"
                       style={{ fontWeight: 600, minWidth: 120, textAlign: 'end' }}
                     >
-                      {c.hasRate ? rs(c.quoteTotalPaisa) : t('items.noRate')}
+                      {c.hasRate ? (
+                        rs(c.quoteTotalPaisa)
+                      ) : (
+                        /* Naming the purity turns a dead end into an
+                           instruction: "No rate" alone left the cashier
+                           guessing which of six rates was missing. */
+                        <span className="tag tag-outline" style={{ whiteSpace: 'nowrap' }}>
+                          {t('pos.noRateFor', {
+                            purity: purityLabel.get(c.item.purityId) ?? '—',
+                          })}
+                        </span>
+                      )}
                     </span>
                     <button
                       className="btn btn-ghost"
@@ -773,45 +827,52 @@ export function PosScreen() {
 
           <div style={{ height: 1, background: 'var(--color-divider)', margin: '12px 0' }} />
 
-          {/* Who the bill is for. Only needed for credit, but useful on any bill
-              so the sale shows up in that customer's history. */}
+          {/* Who the bill is for.
+              Two separate things, deliberately:
+                - the NAME is just what prints on the bill. Typing it creates
+                  nothing; a cash customer who wants their name on the paper
+                  should not become a permanent account.
+                - the ACCOUNT is only needed for udhaar, because a credit sale
+                  has to be charged to someone's ledger.
+              The account picker therefore only appears when the sale actually
+              involves credit. */}
           <div className="field" style={{ marginBottom: 12 }}>
-            <label>{t('pos.customer')}</label>
-            <Select
-              showSearch
-              allowClear
-              value={customerId ?? undefined}
-              onChange={(v) => setCustomerId(v ?? null)}
-              placeholder={t('pos.walkIn')}
+            <label>{t('pos.customerName')}</label>
+            <input
+              className="input"
+              value={customerName}
+              placeholder={t('pos.customerNamePh')}
+              onChange={(e) => setCustomerName(e.target.value)}
               style={{ width: '100%' }}
-              optionFilterProp="label"
-              options={(customers.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
-              notFoundContent={
-                <div style={{ padding: 8 }}>
-                  <input
-                    className="input"
-                    value={newCustomer}
-                    placeholder={t('pos.newCustomerPh')}
-                    onChange={(e) => setNewCustomer(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && newCustomer.trim()) {
-                        addCustomer.mutate(newCustomer.trim());
-                      }
-                    }}
-                    style={{ width: '100%' }}
-                  />
-                  <div style={{ fontSize: 11, opacity: 0.6, marginTop: 6 }}>
-                    {t('pos.newCustomerHint')}
-                  </div>
-                </div>
-              }
             />
-            {customerId != null && owedPaisa > 0 && (
-              <div style={{ fontSize: 11.5, marginTop: 6, opacity: 0.75 }}>
-                {t('pos.alreadyOwes', { amount: rs(owedPaisa) })}
-              </div>
-            )}
           </div>
+
+          {creditPaisa > 0 && (
+            <div className="field" style={{ marginBottom: 12 }}>
+              <label>{t('pos.customerAccount')}</label>
+              <Select
+                showSearch
+                allowClear
+                value={customerId ?? undefined}
+                onChange={(v) => setCustomerId(v ?? null)}
+                placeholder={t('pos.walkIn')}
+                style={{ width: '100%' }}
+                optionFilterProp="label"
+                options={(customers.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
+                notFoundContent={
+                  <div style={{ padding: 8, fontSize: 12 }}>{t('pos.noAccountFound')}</div>
+                }
+              />
+              <div style={{ fontSize: 11, opacity: 0.6, marginTop: 5 }}>
+                {t('pos.customerAccountHint')}
+              </div>
+              {customerId != null && owedPaisa > 0 && (
+                <div style={{ fontSize: 11.5, marginTop: 6, opacity: 0.75 }}>
+                  {t('pos.alreadyOwes', { amount: rs(owedPaisa) })}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Payments */}
           <div

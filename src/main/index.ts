@@ -1,7 +1,7 @@
 /** Electron main process entry: single-instance lock, DB boot (backup ->
  * migrate), auth + IPC wiring, then the window. */
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { openDatabaseAsync, type DB } from './db/connection.js';
 import { backupNow, rotateBackups } from './db/backup.js';
@@ -165,6 +165,66 @@ function getContext(): AppContext {
         // basename() keeps a crafted folder name from walking out of the
         // exports tree and revealing an arbitrary directory.
         void shell.openPath(join(exportsDir(), basename(folder)));
+      },
+      pickImportFile: async () => {
+        // A native open dialog cannot be driven by the UI test, so the file it
+        // should return may be named by an env var instead. Gated on
+        // `app.isPackaged` — the same gate JP_USER_DATA uses above, and the
+        // only one that holds: NODE_ENV is just another environment variable,
+        // so anything that could set it could set that too. In a shipped build
+        // this branch does not exist and a file can still only arrive from a
+        // dialog the user drove.
+        if (!app.isPackaged && process.env['JP_IMPORT_FILE']) {
+          return process.env['JP_IMPORT_FILE'];
+        }
+        if (!mainWindow) throw new Error('no window to open the file dialog from');
+        const picked = await dialog.showOpenDialog(mainWindow, {
+          title: 'Choose a spreadsheet to import',
+          properties: ['openFile'],
+          filters: [
+            { name: 'Spreadsheets', extensions: ['xlsx', 'xlsm', 'xls', 'csv'] },
+            { name: 'All files', extensions: ['*'] },
+          ],
+        });
+        if (picked.canceled || picked.filePaths.length === 0) return null;
+        return picked.filePaths[0];
+      },
+      saveReceiptPdf: async (invoiceId: number, suggestedName: string) => {
+        if (!mainWindow) throw new Error('no window to render the receipt');
+
+        // printToPDF captures whatever the window is currently showing, so the
+        // requested invoice must actually be the one on screen. Without this a
+        // stale or closed modal would save a blank page — or worse, a different
+        // customer's receipt — under the right filename. The receipt marks
+        // itself with its own id for exactly this check.
+        const shown = (await mainWindow.webContents.executeJavaScript(
+          `document.querySelector('.receipt')?.getAttribute('data-invoice-id') ?? null`,
+        )) as string | null;
+        if (shown !== String(invoiceId)) {
+          throw new Error('the receipt is not open — open it before saving a PDF');
+        }
+
+        // Ask before rendering. If the shopkeeper cancels, nothing was drawn
+        // and nothing needs undoing.
+        const picked = await dialog.showSaveDialog(mainWindow, {
+          title: 'Save receipt as PDF',
+          defaultPath: join(app.getPath('documents'), suggestedName),
+          filters: [{ name: 'PDF', extensions: ['pdf'] }],
+        });
+        if (picked.canceled || !picked.filePath) return null;
+
+        // printToPDF renders the live page through the SAME print stylesheet
+        // the printer uses (`@media print` hides the chrome and isolates
+        // `.receipt`), so the file and the paper copy cannot drift apart.
+        // The receipt modal is already open on screen when this is invoked —
+        // it is the button inside that modal that calls it.
+        const pdf = await mainWindow.webContents.printToPDF({
+          pageSize: 'A5',
+          printBackground: false,
+          margins: { marginType: 'custom', top: 0.31, bottom: 0.31, left: 0.31, right: 0.31 },
+        });
+        writeFileSync(picked.filePath, pdf);
+        return picked.filePath;
       },
       relaunch: () => {
         app.relaunch();

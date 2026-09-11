@@ -211,3 +211,70 @@ export const antdTheme: ThemeConfig = {
     },
   },
 };
+
+/* ── plain light theme ─────────────────────────────────────────────────── */
+/* The CSS side of this theme is token overrides in styles.css; antd cannot read
+   custom properties for its derived colours, so the same palette is restated
+   here. Derived from `antdTheme` rather than rewritten, so anything not about
+   colour — sizes, the pill radii on inputs, form label metrics — stays shared
+   and cannot drift. */
+const LIGHT = {
+  bg: '#ffffff',
+  surface: '#f7f9f9',
+  text: '#0f1419',
+  subtle: '#536471',
+  accent: '#1d9bf0',
+  accent2: '#00ba7c',
+  border: '#eff3f4',
+  borderStrong: '#cfd9de',
+  ink: '#0f1419',
+  ui: "system-ui, 'Segoe UI', -apple-system, sans-serif",
+} as const;
+
+export const antdThemeLight: ThemeConfig = {
+  ...antdTheme,
+  token: {
+    ...antdTheme.token,
+    colorPrimary: LIGHT.accent,
+    colorInfo: LIGHT.accent,
+    colorSuccess: LIGHT.accent2,
+    colorWarning: '#f7b928',
+    colorError: '#f4212e',
+    colorTextBase: LIGHT.text,
+    colorBgBase: LIGHT.bg,
+    colorBgContainer: LIGHT.bg,
+    colorBgElevated: LIGHT.bg,
+    colorBorder: LIGHT.borderStrong,
+    colorBorderSecondary: LIGHT.border,
+    fontFamily: LIGHT.ui,
+    // Squarer than the warm theme: the pill is that theme's signature.
+    borderRadius: 12,
+    borderRadiusLG: 16,
+    borderRadiusSM: 6,
+  },
+  components: {
+    ...antdTheme.components,
+    Button: { ...antdTheme.components?.Button, colorTextLightSolid: LIGHT.bg },
+    Input: { ...antdTheme.components?.Input, colorBgContainer: LIGHT.bg },
+    InputNumber: { ...antdTheme.components?.InputNumber, colorBgContainer: LIGHT.bg },
+    Select: {
+      ...antdTheme.components?.Select,
+      colorBgContainer: LIGHT.bg,
+      optionSelectedBg: '#e8f5fd',
+      optionSelectedColor: '#1878b9',
+      optionActiveBg: LIGHT.surface,
+    },
+    DatePicker: { ...antdTheme.components?.DatePicker, colorBgContainer: LIGHT.bg },
+    Layout: { bodyBg: LIGHT.bg, headerBg: LIGHT.bg, siderBg: LIGHT.bg },
+    Alert: {
+      colorInfoBg: '#e8f5fd',
+      colorInfoBorder: '#cfe9fb',
+      colorWarningBg: '#fef7e0',
+      colorWarningBorder: '#fbe3a1',
+      borderRadiusLG: 12,
+    },
+    Message: { contentBg: LIGHT.ink, colorText: LIGHT.bg },
+    Tooltip: { colorBgSpotlight: LIGHT.ink, colorTextLightSolid: LIGHT.bg, borderRadius: 8 },
+    Form: { ...antdTheme.components?.Form, labelColor: LIGHT.subtle },
+  },
+};

@@ -1,3 +1,4 @@
+import { useCallback, useMemo, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App as AntApp, ConfigProvider, Spin } from 'antd';
 import { useTranslation } from 'react-i18next';
@@ -18,7 +19,13 @@ import { KarigarScreen } from '../features/karigar/KarigarScreen.js';
 import { SettingsScreen } from '../features/settings/SettingsScreen.js';
 import { LicenseGate } from '../features/license/LicenseGate.js';
 import { isRtl } from '../i18n/index.js';
-import { antdTheme } from './theme.js';
+import {
+  ThemeContext,
+  storedTheme,
+  setTheme as persistTheme,
+  type Theme,
+} from './uiPrefs.js';
+import { antdTheme, antdThemeLight } from './theme.js';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
@@ -60,8 +67,18 @@ export function App() {
   const { i18n } = useTranslation();
   const direction = isRtl(i18n.language) ? 'rtl' : 'ltr';
 
+  // The stylesheet was already stamped at boot (see uiPrefs/applyTheme via the
+  // initial read); state mirrors it so antd's palette follows a change too.
+  const [theme, setThemeState] = useState<Theme>(storedTheme);
+  const setTheme = useCallback((t: Theme) => {
+    persistTheme(t);
+    setThemeState(t);
+  }, []);
+  const themeCtx = useMemo(() => ({ theme, setTheme }), [theme, setTheme]);
+
   return (
-    <ConfigProvider direction={direction} theme={antdTheme}>
+    <ThemeContext.Provider value={themeCtx}>
+    <ConfigProvider direction={direction} theme={theme === 'light' ? antdThemeLight : antdTheme}>
       <AntApp>
         <QueryClientProvider client={queryClient}>
           <LicenseGate>
@@ -74,5 +91,6 @@ export function App() {
         </QueryClientProvider>
       </AntApp>
     </ConfigProvider>
+    </ThemeContext.Provider>
   );
 }

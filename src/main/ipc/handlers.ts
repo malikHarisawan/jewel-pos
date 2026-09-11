@@ -24,6 +24,8 @@ import { createParty, listParties } from '../services/partyService.js';
 import { listDebtors, getStatement, recordRepayment } from '../services/creditService.js';
 import { listBackups, backupNow, restoreBackup } from '../db/backup.js';
 import { exportAllToCsv } from '../db/csvExport.js';
+import { analyseItemSheet, commitItemImport } from '../import/itemImport.js';
+import { ITEM_FIELDS } from '../import/columns.js';
 import { basename } from 'node:path';
 import {
   issueJob,
@@ -40,6 +42,24 @@ import {
 function requirePlatform(ctx: AppContext): NonNullable<AppContext['platform']> {
   if (!ctx.platform) throw new Error('file access is not available in this environment');
   return ctx.platform;
+}
+
+/**
+ * Paths the user has actually chosen through an open dialog this session.
+ *
+ * The import channels take a file path from the renderer, and a path from the
+ * renderer is not a path the user picked — a compromised renderer could ask
+ * main to parse any file on the disk. Only paths that came back from
+ * `import.pickFile` are honoured, so the dialog remains the sole way a file
+ * enters the importer.
+ */
+const pickedImportPaths = new Set<string>();
+
+function requirePickedPath(path: string): string {
+  if (!pickedImportPaths.has(path)) {
+    throw new Error('choose the file again — that path was not picked in this session');
+  }
+  return path;
 }
 
 export const handlers: Handlers = {
@@ -156,6 +176,7 @@ export const handlers: Handlers = {
       // is what makes the discount ceiling unfakeable from the renderer.
       role: session.role,
       customerId: input.customerId ?? null,
+      customerNameText: input.customerNameText ?? null,
       saleLines: input.saleLines,
       oldGoldLines: input.oldGoldLines,
       payments: input.payments,
@@ -220,6 +241,55 @@ export const handlers: Handlers = {
     const res = exportAllToCsv(ctx.db, platform.exportsDir, new Date());
     platform.revealExport?.(res.folder);
     return res;
+  },
+
+  'export.receiptPdf': async (ctx, input) => {
+    const platform = requirePlatform(ctx);
+    if (!platform.saveReceiptPdf) {
+      throw new Error('saving a PDF is not available in this environment');
+    }
+    // Read the invoice first: it proves the id exists before a save dialog
+    // opens, and its number is what the file should be called. A receipt saved
+    // as "invoice.pdf" is unfindable in a folder of a thousand receipts.
+    const invoice = getInvoice(ctx.db, input.id);
+    const safe = (invoice.docNumber ?? `invoice-${input.id}`).replace(/[^\w.-]+/g, '-');
+    return { path: await platform.saveReceiptPdf(input.id, `${safe}.pdf`) };
+  },
+
+  // ---- spreadsheet import
+  'import.fields': () =>
+    ITEM_FIELDS.map((f) => ({ key: f.key, label: f.label, required: f.required })),
+
+  'import.pickFile': async (ctx) => {
+    const platform = requirePlatform(ctx);
+    if (!platform.pickImportFile) {
+      throw new Error('choosing a file is not available in this environment');
+    }
+    const path = await platform.pickImportFile();
+    if (!path) return { path: null, name: null };
+    // Remember it: analyse/commit will only accept a path that got here.
+    pickedImportPaths.add(path);
+    return { path, name: basename(path) };
+  },
+
+  'import.analyse': (ctx, input) =>
+    analyseItemSheet(ctx.db, {
+      filePath: requirePickedPath(input.filePath),
+      sheetName: input.sheetName,
+      mapping: input.mapping,
+      weightUnit: input.weightUnit,
+    }),
+
+  'import.commit': (ctx, input) => {
+    const session = ctx.auth.requireSession();
+    return commitItemImport(ctx.db, session.userId, {
+      filePath: requirePickedPath(input.filePath),
+      sheetName: input.sheetName,
+      mapping: input.mapping,
+      weightUnit: input.weightUnit,
+      rowNumbers: input.rowNumbers,
+      postOpeningStock: input.postOpeningStock,
+    });
   },
 
   'parties.list': (ctx, input) => listParties(ctx.db, input),

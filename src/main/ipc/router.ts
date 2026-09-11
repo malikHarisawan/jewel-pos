@@ -43,6 +43,25 @@ export interface AppContext {
      */
     revealExport?: (folder: string) => void;
     /**
+     * Ask the user where to keep a receipt PDF and write it there. Returns the
+     * path written, or null if they cancelled — cancelling a save dialog is a
+     * normal outcome and must not surface as an error.
+     *
+     * Rendering is the host's job because only it owns a window that can be
+     * printed; the handler supplies the invoice number for the filename and
+     * nothing else. Optional: headless hosts simply omit it.
+     */
+    saveReceiptPdf?: (invoiceId: number, suggestedName: string) => Promise<string | null>;
+    /**
+     * Ask the user for a spreadsheet to import and return its absolute path,
+     * or null if they cancelled. The dialog lives here rather than in the
+     * handler because only the host owns a window to parent it to — and
+     * because routing every import through a real dialog is what lets the
+     * handler refuse paths the renderer invented. Optional: headless hosts
+     * simply omit it.
+     */
+    pickImportFile?: () => Promise<string | null>;
+    /**
      * Push preferences that have an OS-level effect (tray behaviour, the
      * Windows login item) out to the host after Settings writes them.
      * Optional: hosts without a desktop shell simply do not supply it.

@@ -1,19 +1,16 @@
-import { useMemo } from 'react';
+import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App as AntApp, Popconfirm, Select, Spin } from 'antd';
 import { api } from '../../lib/api.js';
 import { useStickyState } from '../../lib/useStickyState.js';
-import { useCatalog } from '../items/useCatalog.js';
 import { useSession } from '../../app/session.js';
 import { Screen } from '../../app/AppShell.js';
-import { g, gu, tola, stamp, parseG, parseNum } from '../../lib/format.js';
-import { TOLA_MG } from '../../../../shared/units/index.js';
+import { g, stamp, weekdayDate, parseG, parseNum } from '../../lib/format.js';
 import { REASON_CODES } from '../../../../shared/domain/enums.js';
 import type { z } from 'zod';
-import type { BalanceRowDTO, MovementDTO } from '../../../../shared/contracts/index.js';
+import type { MovementDTO } from '../../../../shared/contracts/index.js';
 
-type BalanceRow = z.infer<typeof BalanceRowDTO>;
 type MovementRow = z.infer<typeof MovementDTO>;
 
 /** Movement type → label + tag class. Grouped by direction so the ledger reads
@@ -32,35 +29,33 @@ const MOVEMENT_STYLE: Record<string, [string, string]> = {
 
 const styleFor = (type: string): [string, string] => MOVEMENT_STYLE[type] ?? [type, 'tag tag-neutral'];
 
-/** The append-only stock ledger, and the balances folded out of it. Nothing on
- * this screen can be edited or deleted — a mistake is corrected by reversing. */
+/** Purchases: where metal enters the shop and where stock is corrected.
+ *
+ * Named "Purchases" in the nav rather than "Stock" because it read as a
+ * duplicate of Items, which is the catalogue. This screen owns the three things
+ * Items cannot do — purchase in, adjust, reverse — over an append-only ledger.
+ * Nothing here can be edited or deleted; a mistake is corrected by reversing. */
 export function StockScreen() {
   const { t } = useTranslation();
   const { session } = useSession();
   const canWrite = session?.role === 'OWNER' || session?.role === 'MANAGER';
-  const catalog = useCatalog();
+  /** Which posting form is open, if any. Closed by default: this screen is read
+   *  far more often than it is written to. */
+  const [form, setForm] = useState<'purchase' | 'adjust' | null>(null);
   const qc = useQueryClient();
   const { message } = AntApp.useApp();
 
-  const [search, setSearch] = useStickyState('stock.search', '');
-  const [nonZeroOnly, setNonZeroOnly] = useStickyState('stock.nonZeroOnly', true);
 
-  const settings = useQuery({ queryKey: ['settings'], queryFn: () => api['settings.get']({}) });
-  const tolaMg = Number(settings.data?.tola_mg) || TOLA_MG;
 
-  const purityName = useMemo(() => {
-    const m = new Map<number, string>();
-    catalog.data?.purities.forEach((p) => m.set(p.id, p.label));
-    return m;
-  }, [catalog.data]);
-
-  const balances = useQuery({
-    queryKey: ['stock', 'balances', search, nonZeroOnly],
-    queryFn: () => api['stock.balances']({ search: search || undefined, nonZeroOnly, limit: 1000 }),
-  });
   const movements = useQuery({
     queryKey: ['stock', 'movements'],
-    queryFn: () => api['stock.movements']({ limit: 500 }),
+    queryFn: () =>
+      api['stock.movements']({
+        // This screen is the purchase book, not the whole ledger. Sales leave
+        // through the Sales screen and were only noise here.
+        types: ['PURCHASE_IN', 'OPENING', 'SALE_RETURN_IN', 'EXCHANGE_IN', 'ADJUSTMENT'],
+        limit: 500,
+      }),
   });
   const items = useQuery({
     queryKey: ['items', 'list', ''],
@@ -91,103 +86,51 @@ export function StockScreen() {
   return (
     <Screen
       title={t('nav.stock')}
-      subtitle="Append-only ledger. The balances beside it are produced by folding these rows."
+      subtitle="A diary, not a list: one row per delivery, newest first. The same piece appears again every time more of it arrives."
       actions={
-        <span className="tag tag-outline" style={{ padding: '6px 14px' }}>
-          Nothing here can be edited or deleted — only reversed
-        </span>
+        canWrite ? (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              className="btn btn-primary"
+              onClick={() => setForm((f) => (f === 'purchase' ? null : 'purchase'))}
+            >
+              {t('stock.purchase')}
+            </button>
+            <button
+              className="btn btn-secondary"
+              onClick={() => setForm((f) => (f === 'adjust' ? null : 'adjust'))}
+            >
+              {t('stock.adjust')}
+            </button>
+          </div>
+        ) : undefined
       }
     >
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1fr) 360px',
-          gap: 16,
-          alignItems: 'start',
-        }}
-      >
+      <div style={{ display: 'grid', gap: 16, alignItems: 'start' }}>
+        {/* Posting forms open on demand. They used to occupy a permanent rail
+            beside the history, which made a screen that is read far more often
+            than written look like a data-entry form. Salesmen never see them. */}
+        {canWrite && form === 'purchase' && (
+          <PurchasePanel
+            itemOptions={itemOptions}
+            onPosted={() => {
+              invalidate();
+              setForm(null);
+            }}
+          />
+        )}
+        {canWrite && form === 'adjust' && (
+          <AdjustmentPanel
+            itemOptions={itemOptions}
+            onPosted={() => {
+              invalidate();
+              setForm(null);
+            }}
+          />
+        )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {/* Balances */}
-          <div style={{ background: 'var(--color-surface)', borderRadius: 24, padding: '14px 18px' }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 12,
-                marginBottom: 10,
-                flexWrap: 'wrap',
-              }}
-            >
-              <h4 style={{ margin: 0, fontSize: 17 }}>{t('stock.tab.balances')}</h4>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                <input
-                  className="input"
-                  placeholder={t('items.searchPlaceholder')}
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  style={{ width: 240, background: 'var(--color-bg)' }}
-                />
-                <label className="radio" style={{ fontSize: 12.5, whiteSpace: 'nowrap' }}>
-                  <input
-                    type="checkbox"
-                    checked={nonZeroOnly}
-                    onChange={(e) => setNonZeroOnly(e.target.checked)}
-                    style={{ position: 'static', opacity: 1, width: 'auto', height: 'auto' }}
-                  />
-                  {t('stock.nonZeroOnly')}
-                </label>
-              </div>
-            </div>
-            <div style={{ overflowX: 'auto' }}>
-              <table className="table jp-num">
-                <thead>
-                  <tr>
-                    <th>{t('items.col.tag')}</th>
-                    <th>{t('items.col.name')}</th>
-                    <th>Purity</th>
-                    <th>Pcs</th>
-                    <th>Net</th>
-                    <th>Tola</th>
-                    <th>{t('items.col.status')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(balances.data ?? []).map((b: BalanceRow) => (
-                    <tr key={b.itemId}>
-                      <td style={{ fontSize: 12, opacity: 0.65 }}>{b.tagNumber ?? '—'}</td>
-                      <td>{b.name}</td>
-                      <td>{purityName.get(b.purityId) ?? '—'}</td>
-                      <td>{b.pieces}</td>
-                      <td style={{ fontWeight: 600 }}>{gu(b.netMg)}</td>
-                      <td style={{ opacity: 0.6 }}>{tola(b.netMg, tolaMg)}</td>
-                      <td>
-                        <span className="tag tag-neutral">{b.status}</span>
-                      </td>
-                    </tr>
-                  ))}
-                  {balances.isLoading && (
-                    <tr>
-                      <td colSpan={7} style={{ textAlign: 'center', padding: 20 }}>
-                        <Spin />
-                      </td>
-                    </tr>
-                  )}
-                  {!balances.isLoading && (balances.data ?? []).length === 0 && (
-                    <tr>
-                      <td colSpan={7} style={{ opacity: 0.55, padding: 16 }}>
-                        Nothing in stock.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
           {/* Ledger */}
           <div style={{ background: 'var(--color-surface)', borderRadius: 24, padding: '14px 18px' }}>
-            <h4 style={{ margin: '0 0 8px', fontSize: 17 }}>{t('stock.tab.ledger')}</h4>
             <div style={{ overflowX: 'auto' }}>
               <table className="table jp-num">
                 <thead>
@@ -197,19 +140,34 @@ export function StockScreen() {
                     <th>{t('items.col.name')}</th>
                     <th>{t('stock.col.pcs')}</th>
                     <th>{t('stock.col.netDelta')}</th>
-                    <th>{t('stock.col.reason')}</th>
+                    <th>{t('stock.col.note')}</th>
                     <th>{t('stock.col.by')}</th>
                     <th />
                   </tr>
                 </thead>
                 <tbody>
-                  {(movements.data ?? []).map((m: MovementRow) => {
+                  {(movements.data ?? []).map((m: MovementRow, i, all) => {
                     const [label, cls] = styleFor(m.movementType);
                     const reversed = m.reversesMovementId != null;
+                    // A dated heading whenever the day changes. This is the
+                    // cheapest way to stop the screen reading as another
+                    // catalogue: a catalogue has no dates, a diary does, and
+                    // the repeated item names then obviously mean "arrived
+                    // again" rather than "listed twice".
+                    const dayOf = (r: MovementRow) => r.createdAt.slice(0, 10);
+                    const newDay = i === 0 || dayOf(all[i - 1]) !== dayOf(m);
                     return (
-                      <tr key={m.id} className={reversed ? 'jp-row-muted' : undefined}>
+                      <Fragment key={m.id}>
+                      {newDay && (
+                        <tr>
+                          <td colSpan={8} style={{ padding: '14px 0 4px' }}>
+                            <span className="jp-kicker">{weekdayDate(new Date(m.createdAt))}</span>
+                          </td>
+                        </tr>
+                      )}
+                      <tr className={reversed ? 'jp-row-muted' : undefined}>
                         <td style={{ fontSize: 11.5, opacity: 0.6, whiteSpace: 'nowrap' }}>
-                          {stamp(m.createdAt)}
+                          {stamp(m.createdAt).slice(11)}
                         </td>
                         <td>
                           <span className={reversed ? 'tag tag-outline' : cls}>
@@ -225,7 +183,12 @@ export function StockScreen() {
                           {m.netMgDelta < 0 ? '−' : '+'}
                           {g(Math.abs(m.netMgDelta))}
                         </td>
-                        <td style={{ fontSize: 11.5, opacity: 0.7 }}>{m.reasonCode ?? '—'}</td>
+                        <td style={{ fontSize: 11.5, opacity: 0.7 }}>
+                          {/* Purchases carry the supplier / bill ref in notes;
+                              adjustments carry a reason code instead. Show
+                              whichever this row actually has. */}
+                          {m.notes || m.reasonCode || '—'}
+                        </td>
                         <td style={{ fontSize: 11.5, opacity: 0.6 }}>{m.createdByName}</td>
                         <td style={{ textAlign: 'end' }}>
                           {canWrite && !reversed && (
@@ -241,6 +204,7 @@ export function StockScreen() {
                           )}
                         </td>
                       </tr>
+                      </Fragment>
                     );
                   })}
                   {movements.isLoading && (
@@ -253,7 +217,8 @@ export function StockScreen() {
                   {!movements.isLoading && (movements.data ?? []).length === 0 && (
                     <tr>
                       <td colSpan={8} style={{ opacity: 0.55, padding: 16 }}>
-                        No movements yet.
+                        No deliveries recorded yet. Adding a piece on Items lists what it is;
+                        recording it here says when it arrived and from whom.
                       </td>
                     </tr>
                   )}
@@ -263,14 +228,7 @@ export function StockScreen() {
           </div>
         </div>
 
-        {/* Posting panels — always on screen, so the common actions cost no
-            extra click. Hidden entirely from salesmen, who cannot post. */}
-        {canWrite && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <PurchasePanel itemOptions={itemOptions} onPosted={invalidate} />
-            <AdjustmentPanel itemOptions={itemOptions} onPosted={invalidate} />
-          </div>
-        )}
+
       </div>
     </Screen>
   );

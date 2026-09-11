@@ -7,6 +7,9 @@ import { useSession } from '../../app/session.js';
 import { Screen } from '../../app/AppShell.js';
 import { stamp } from '../../lib/format.js';
 import { UsersPanel } from './UsersPanel.js';
+import { ImportPanel } from './ImportPanel.js';
+import { setLang, type Lang } from '../../i18n/index.js';
+import { useTheme, type Theme } from '../../app/uiPrefs.js';
 
 /** Shop identity, tax and rounding rules, users and this user's own PIN.
  * Everything here feeds the next invoice; nothing rewrites an invoice already
@@ -30,6 +33,7 @@ export function SettingsScreen() {
           alignItems: 'start',
         }}
       >
+        <AppearancePanel />
         <ShopPanel canManage={canManage} />
         <DesktopPanel canManage={canManage} />
         <SalePanel canManage={canManage} />
@@ -37,6 +41,15 @@ export function SettingsScreen() {
         <ChangePinPanel />
         {isOwner && <BackupPanel />}
         {isOwner && <ExportPanel />}
+        {/* Full width, like Users: the import preview is a stock table with the
+            same columns as the Items screen, and squeezed into one grid column
+            every cell wraps onto four lines — which defeats the point of a
+            preview you are meant to scan. */}
+        {isOwner && (
+          <div style={{ gridColumn: '1 / -1' }}>
+            <ImportPanel />
+          </div>
+        )}
         {isOwner && (
           <div style={{ gridColumn: '1 / -1' }}>
             <UsersPanel />
@@ -44,6 +57,60 @@ export function SettingsScreen() {
         )}
       </div>
     </Screen>
+  );
+}
+
+/** Language and theme. Deliberately available to every role and not stored in
+ * the database: they change how this machine looks, not what the shop records,
+ * so a salesman may set them and they need no permission check. */
+function AppearancePanel() {
+  const { t, i18n } = useTranslation();
+  const { theme, setTheme } = useTheme();
+
+  return (
+    <Panel title={t('settings.language')} hint={t('settings.languageHint')}>
+      <div className="seg" style={{ marginBottom: 16 }}>
+        {(
+          [
+            ['en', 'English'],
+            ['ur', 'اردو'],
+          ] as [Lang, string][]
+        ).map(([v, label]) => (
+          <label key={v} className="seg-opt">
+            <input
+              type="radio"
+              name="jp-lang"
+              checked={i18n.language === v}
+              onChange={() => setLang(v)}
+            />
+            {label}
+          </label>
+        ))}
+      </div>
+
+      <div className="jp-kicker">{t('settings.theme')}</div>
+      <div style={{ fontSize: 11.5, opacity: 0.6, margin: '4px 0 10px' }}>
+        {t('settings.themeHint')}
+      </div>
+      <div className="seg">
+        {(
+          [
+            ['warm', t('settings.themeWarm')],
+            ['light', t('settings.themeLight')],
+          ] as [Theme, string][]
+        ).map(([v, label]) => (
+          <label key={v} className="seg-opt">
+            <input
+              type="radio"
+              name="jp-theme"
+              checked={theme === v}
+              onChange={() => setTheme(v)}
+            />
+            {label}
+          </label>
+        ))}
+      </div>
+    </Panel>
   );
 }
 

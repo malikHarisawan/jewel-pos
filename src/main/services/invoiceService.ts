@@ -56,6 +56,8 @@ export interface PaymentInput {
 export interface FinalizeInvoiceInput {
   documentId: number;
   customerId?: number | null;
+  /** A name to print on this bill only. No account is created. */
+  customerNameText?: string | null;
   saleLines: SaleLineInput[];
   oldGoldLines: OldGoldLineInput[];
   payments: PaymentInput[];
@@ -135,6 +137,8 @@ export interface CheckoutInput {
    * Drives the discount-authority ceiling. */
   role: Role;
   customerId?: number | null;
+  /** A name to print on this bill only. No account is created. */
+  customerNameText?: string | null;
   saleLines: SaleLineInput[];
   oldGoldLines: OldGoldLineInput[];
   payments: PaymentInput[];
@@ -256,7 +260,7 @@ export function listInvoices(db: DB, filter: ListInvoicesFilter = {}) {
   const rows = db
     .prepare(
       `SELECT d.id, d.doc_number, d.doc_date, d.status, d.grand_total_paisa,
-              p.name AS customer_name,
+              COALESCE(p.name, d.customer_name_text) AS customer_name,
               (SELECT count(*) FROM document_lines dl
                 WHERE dl.document_id = d.id AND dl.line_kind != 'OLD_GOLD_EXCHANGE') AS line_count,
               u.display_name AS cashier_name
@@ -294,7 +298,7 @@ export function listInvoices(db: DB, filter: ListInvoicesFilter = {}) {
 export function getInvoice(db: DB, id: number) {
   const doc = db
     .prepare(
-      `SELECT d.*, p.name AS customer_name FROM documents d
+      `SELECT d.*, COALESCE(p.name, d.customer_name_text) AS customer_name FROM documents d
        LEFT JOIN parties p ON p.id = d.party_id WHERE d.id=?`,
     )
     .get(id) as
@@ -643,10 +647,17 @@ export function checkout(db: DB, userId: number, input: CheckoutInput): Finalize
     ).id;
     const docInfo = db
       .prepare(
-        `INSERT INTO documents (doc_type, status, party_id, doc_date, created_by)
-         VALUES ('SALE_INVOICE','DRAFT',?,?,?)`,
+        `INSERT INTO documents (doc_type, status, party_id, customer_name_text, doc_date, created_by)
+         VALUES ('SALE_INVOICE','DRAFT',?,?,?,?)`,
       )
-      .run(input.customerId ?? null, input.dateISO, userId);
+      .run(
+        input.customerId ?? null,
+        // A name typed for the bill only. Trimmed to null so an empty box does
+        // not print a blank "Customer" line on the receipt.
+        input.customerNameText?.trim() || null,
+        input.dateISO,
+        userId,
+      );
     const documentId = Number(docInfo.lastInsertRowid);
 
     // 2. Lock the latest rate for every purity the cart touches.

@@ -1,0 +1,12 @@
+-- A name to print on the bill, without creating a customer account.
+--
+-- Until now the only way to get a name onto a receipt was to join `parties`,
+-- which meant every "please put my name on the bill" walk-in became a permanent
+-- account in the shop's customer list. Most shops do not want that: the account
+-- exists for udhaar, and a cash customer who wants their name printed is not
+-- opening one.
+--
+-- So the document carries its own name. `party_id` still means "this bill is
+-- against an account" and remains the only thing udhaar looks at; this column
+-- means "print this on the paper" and nothing more.
+ALTER TABLE documents ADD COLUMN customer_name_text TEXT;

@@ -195,6 +195,89 @@
      tone under the window. */
   --jp-ink: color-mix(in srgb, var(--color-accent-900) 84%, var(--color-neutral-900));
   --jp-desk: color-mix(in srgb, var(--color-bg) 78%, var(--color-neutral-500));
+  /* Text and lines drawn ON the ink chrome. Its own token because the warm
+     theme's chrome is dark (so this is the light ground) while the light
+     theme's chrome is white (so this must invert) — the shell should not have
+     to know which. */
+  --jp-on-ink: var(--color-bg);
+}
+
+/* ── plain light theme ─────────────────────────────────────────────────── */
+/* An alternative to the warm default, for shops that find the cream ground
+   tiring over a full day. Everything is a token override: no component knows
+   which theme is on, so the two cannot drift apart.
+
+   The reference is a reading interface rather than a brand surface — near-white
+   ground, one calm blue for action, grey text that is dark enough to read but
+   short of pure black (#0f1419, not #000: full-contrast black on white is what
+   makes long sessions ache), and the system UI face at every level instead of
+   a display serif. */
+:root[data-theme='light'] {
+  --color-bg: #ffffff;
+  --color-surface: #f7f9f9;
+  --color-text: #0f1419;
+  --color-accent: #1d9bf0;
+  --color-accent-2: #00ba7c;
+  --color-divider: #eff3f4;
+
+  --color-neutral-100: #ffffff;
+  --color-neutral-200: #f7f9f9;
+  --color-neutral-300: #eff3f4;
+  --color-neutral-400: #cfd9de;
+  --color-neutral-500: #aab8c2;
+  --color-neutral-600: #8899a6;
+  --color-neutral-700: #536471;
+  --color-neutral-800: #2c3640;
+  --color-neutral-900: #0f1419;
+
+  --color-accent-100: #e8f5fd;
+  --color-accent-200: #cfe9fb;
+  --color-accent-300: #9fd3f7;
+  --color-accent-400: #5cb8f3;
+  --color-accent-500: #1d9bf0;
+  --color-accent-600: #1a8cd8;
+  --color-accent-700: #1878b9;
+  --color-accent-800: #14608f;
+  --color-accent-900: #0d4266;
+
+  --color-accent-2-100: #e6f7f0;
+  --color-accent-2-200: #c2ecdb;
+  --color-accent-2-300: #8fdcbe;
+  --color-accent-2-400: #4fc99b;
+  --color-accent-2-500: #00ba7c;
+  --color-accent-2-600: #009d68;
+  --color-accent-2-700: #007d53;
+  --color-accent-2-800: #005c3d;
+  --color-accent-2-900: #003d29;
+
+  /* One face at every level. The warm theme's serif/geometric pairing is brand
+     voice; this theme's job is to disappear while being read. */
+  --font-heading: system-ui, 'Segoe UI', -apple-system, sans-serif;
+  --font-heading-weight: 700;
+  --font-body: system-ui, 'Segoe UI', -apple-system, sans-serif;
+  --font-ui: system-ui, 'Segoe UI', -apple-system, sans-serif;
+
+  /* Shadows are the main source of visual noise on a white ground, so they
+     recede to hairlines. */
+  --shadow-sm: 0 1px 2px rgb(15 20 25 / 6%);
+  --shadow-md: 0 2px 8px rgb(15 20 25 / 8%);
+  --shadow-lg: 0 8px 24px rgb(15 20 25 / 10%);
+
+  /* Softer corners: the pill radius belongs to the warm theme's character. */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  /* The sidebar stops being a dark slab and becomes a quiet panel. */
+  --jp-ink: #ffffff;
+  --jp-desk: #f7f9f9;
+  --jp-on-ink: #0f1419;
+}
+
+/* Panels read as cards outlined on white rather than tinted blocks. */
+:root[data-theme='light'] .jp-panel {
+  background: var(--color-bg);
+  border: 1px solid var(--color-divider);
 }
 
 /* ── base ──────────────────────────────────────────────────────────────── */
@@ -785,37 +868,37 @@ textarea.input {
    the lock and licence gates). */
 .jp-on-ink .input,
 .input.jp-on-ink {
-  background: color-mix(in srgb, var(--color-bg) 10%, transparent);
-  border-color: color-mix(in srgb, var(--color-bg) 25%, transparent);
-  color: var(--color-bg);
+  background: color-mix(in srgb, var(--jp-on-ink) 10%, transparent);
+  border-color: color-mix(in srgb, var(--jp-on-ink) 25%, transparent);
+  color: var(--jp-on-ink);
 }
 .jp-on-ink .field > label,
 .field.jp-on-ink > label {
-  color: color-mix(in srgb, var(--color-bg) 70%, transparent);
+  color: color-mix(in srgb, var(--jp-on-ink) 70%, transparent);
 }
 .jp-on-ink .input::placeholder,
 .input.jp-on-ink::placeholder {
-  color: color-mix(in srgb, var(--color-bg) 45%, transparent);
+  color: color-mix(in srgb, var(--jp-on-ink) 45%, transparent);
 }
 
 /* The same treatment for the antd controls the item form uses. Without this an
    antd field on the ink panel keeps its light-theme label and a cream input
    body, which reads as a disabled control rather than an editable one. */
 .jp-on-ink .ant-form-item-label > label {
-  color: color-mix(in srgb, var(--color-bg) 72%, transparent) !important;
+  color: color-mix(in srgb, var(--jp-on-ink) 72%, transparent) !important;
   font-size: 11.5px;
 }
 .jp-on-ink .ant-form-item-extra {
-  color: color-mix(in srgb, var(--color-bg) 45%, transparent) !important;
+  color: color-mix(in srgb, var(--jp-on-ink) 45%, transparent) !important;
   font-size: 11px;
   margin-top: 3px;
 }
 .jp-on-ink .ant-input-number,
 .jp-on-ink .ant-input,
 .jp-on-ink .ant-input-affix-wrapper {
-  background: color-mix(in srgb, var(--color-bg) 10%, transparent) !important;
-  border-color: color-mix(in srgb, var(--color-bg) 25%, transparent) !important;
-  color: var(--color-bg) !important;
+  background: color-mix(in srgb, var(--jp-on-ink) 10%, transparent) !important;
+  border-color: color-mix(in srgb, var(--jp-on-ink) 25%, transparent) !important;
+  color: var(--jp-on-ink) !important;
 }
 .jp-on-ink .ant-input-number:hover,
 .jp-on-ink .ant-input:hover,
@@ -832,23 +915,23 @@ textarea.input {
 .jp-on-ink .ant-input-number .ant-input-number-input,
 .jp-on-ink .ant-input-number-input {
   background: transparent !important;
-  color: var(--color-bg) !important;
+  color: var(--jp-on-ink) !important;
 }
 .jp-on-ink .ant-input-number-input::placeholder,
 .jp-on-ink .ant-input::placeholder {
-  color: color-mix(in srgb, var(--color-bg) 40%, transparent) !important;
+  color: color-mix(in srgb, var(--jp-on-ink) 40%, transparent) !important;
 }
 /* The stepper arrows inherit the light palette and vanish against the ink. */
 .jp-on-ink .ant-input-number-handler-wrap {
-  background: color-mix(in srgb, var(--color-bg) 8%, transparent) !important;
-  border-inline-start-color: color-mix(in srgb, var(--color-bg) 18%, transparent) !important;
+  background: color-mix(in srgb, var(--jp-on-ink) 8%, transparent) !important;
+  border-inline-start-color: color-mix(in srgb, var(--jp-on-ink) 18%, transparent) !important;
 }
 .jp-on-ink .ant-input-number-handler {
-  border-block-start-color: color-mix(in srgb, var(--color-bg) 18%, transparent) !important;
+  border-block-start-color: color-mix(in srgb, var(--jp-on-ink) 18%, transparent) !important;
 }
 .jp-on-ink .ant-input-number-handler-up-inner,
 .jp-on-ink .ant-input-number-handler-down-inner {
-  color: color-mix(in srgb, var(--color-bg) 60%, transparent) !important;
+  color: color-mix(in srgb, var(--jp-on-ink) 60%, transparent) !important;
 }
 
 /* Toast — bottom-end of the shell, above the status bar. */
@@ -858,7 +941,7 @@ textarea.input {
   bottom: 44px;
   max-width: 420px;
   background: var(--jp-ink);
-  color: var(--color-bg);
+  color: var(--jp-on-ink);
   border-radius: 18px;
   padding: 12px 16px;
   font-size: 12.5px;
@@ -871,9 +954,9 @@ textarea.input {
 .jp-key {
   height: 54px;
   border-radius: 18px;
-  border: 1px solid color-mix(in srgb, var(--color-bg) 20%, transparent);
-  background: color-mix(in srgb, var(--color-bg) 6%, transparent);
-  color: var(--color-bg);
+  border: 1px solid color-mix(in srgb, var(--jp-on-ink) 20%, transparent);
+  background: color-mix(in srgb, var(--jp-on-ink) 6%, transparent);
+  color: var(--jp-on-ink);
   /* Tabular body figures, not the serif: keypad digits should read as keys on a
      device, and equal-width digits stop the pad shifting between 1 and 8. */
   font-family: var(--font-body);
@@ -890,10 +973,10 @@ textarea.input {
   transform: translateY(1px);
 }
 .jp-key:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-bg) 16%, transparent);
+  background: color-mix(in srgb, var(--jp-on-ink) 16%, transparent);
 }
 .jp-key:active:not(:disabled) {
-  background: color-mix(in srgb, var(--color-bg) 24%, transparent);
+  background: color-mix(in srgb, var(--jp-on-ink) 24%, transparent);
 }
 
 /* Sidebar navigation. The most-clicked control in the app, so it gets a real
@@ -911,7 +994,7 @@ textarea.input {
   font-family: var(--font-body);
   font-weight: 500;
   background: transparent;
-  color: var(--color-bg);
+  color: var(--jp-on-ink);
   cursor: pointer;
   transition:
     background-color var(--dur-1) var(--ease),
@@ -919,7 +1002,7 @@ textarea.input {
     transform var(--dur-1) var(--ease);
 }
 .jp-nav:hover:not(:disabled):not([aria-current='page']) {
-  background: color-mix(in srgb, var(--color-bg) 12%, transparent);
+  background: color-mix(in srgb, var(--jp-on-ink) 12%, transparent);
 }
 .jp-nav:active:not(:disabled) {
   transform: translateY(1px);
@@ -931,7 +1014,7 @@ textarea.input {
 }
 /* A screen this role cannot open reads as locked, not as a dead control. */
 .jp-nav:disabled {
-  color: color-mix(in srgb, var(--color-bg) 38%, transparent);
+  color: color-mix(in srgb, var(--jp-on-ink) 38%, transparent);
   cursor: not-allowed;
 }
 /* The F-key hint recedes until the row is hovered. */
@@ -964,6 +1047,22 @@ textarea.input {
   /* These carry option lists, table rows and messages — reading surfaces. */
   font-family: var(--font-ui);
 }
+/* The pill radius belongs to the closed control, not to the panel it opens.
+   antd reuses one Select radius token for both, so a 999px pill turned the
+   option list into an ellipse that clipped the first and last entries. Popup
+   surfaces get an ordinary rounded rectangle instead. */
+.ant-select-dropdown,
+.ant-picker-dropdown,
+.ant-dropdown-menu {
+  border-radius: 14px;
+}
+/* The scrolling list inside must not inherit the pill either, or its top and
+   bottom rows are cut as it scrolls. */
+.ant-select-dropdown .rc-virtual-list-holder,
+.ant-select-dropdown .ant-select-item {
+  border-radius: 10px;
+}
+
 /* Numeric columns in antd tables get tabular figures, matching .jp-num. */
 .ant-table-cell.jp-num {
   font-variant-numeric: tabular-nums;
@@ -977,7 +1076,10 @@ textarea.input {
   body {
     background: #fff;
   }
-  .jp-noprint {
+  .jp-noprint,
+  /* Ant renders the modal's own ✕ outside our markup, so it is not covered by
+     .jp-noprint and printed into the corner of the sheet. */
+  .ant-modal-close {
     display: none !important;
   }
   .jp-shell {
@@ -986,18 +1088,69 @@ textarea.input {
     height: auto !important;
     width: auto !important;
   }
-  body * {
-    visibility: hidden;
+  /* `visibility: hidden` leaves elements in the layout: they occupy space and
+     some — notably Ant's select placeholders, which paint via ::after — still
+     came through as ghost text over the receipt when rendered to PDF. Hiding
+     the app's two roots outright removes them from the page entirely, and the
+     receipt is then re-parented to the top by `position: fixed`. */
+  .jp-shell,
+  .ant-modal-mask {
+    display: none !important;
   }
-  .receipt,
-  .receipt * {
-    visibility: visible;
+  /* The modal that carries the receipt must stay displayed, but every part of
+     its chrome (mask, padding, panel background) is dropped so only the sheet
+     itself reaches the paper. */
+  .ant-modal-root,
+  .ant-modal-wrap,
+  .ant-modal,
+  .ant-modal-container,
+  .ant-modal-content,
+  .ant-modal-body {
+    position: static !important;
+    overflow: visible !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: auto !important;
+    max-width: none !important;
   }
+  /* The app mounts into full-height wrappers (#root and Ant's app div). Left
+     alone they stay ~viewport-tall even with the shell hidden, and that
+     overflow alone spilled a blank second page out of a receipt that fits on
+     one. Collapse them so the page is exactly as tall as the sheet. */
+  html,
+  body {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  /* The app root is an unnamed div under <body>; the modal Ant portals the
+     receipt into is a sibling of it. Hide every direct child of body by
+     default and re-show only the branch holding the receipt — that way no
+     wrapper's height, padding or ghost text can reach the page, and this
+     does not depend on class names Ant may rename between versions. */
+  body > * {
+    display: none !important;
+  }
+  body > :has(.receipt) {
+    display: block !important;
+  }
+
+  /* Anchored to the top-left of the sheet, but NOT stretched: `inset: 0` forced
+     the receipt to full viewport height, which overflowed into a second, mostly
+     blank page. It takes the height its content needs. */
   .receipt {
-    position: absolute;
-    inset: 0;
+    position: static;
+    height: auto;
     box-shadow: none !important;
     border-radius: 0 !important;
+    /* A stray fraction of a line must not manufacture a second page. */
+    overflow: hidden;
+    page-break-after: avoid;
+    break-after: avoid;
   }
   @page {
     size: A5;
@@ -1025,7 +1178,7 @@ textarea.input {
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: color-mix(in srgb, var(--color-bg) 72%, transparent);
+  color: color-mix(in srgb, var(--jp-on-ink) 72%, transparent);
   cursor: pointer;
   display: grid;
   place-items: center;
@@ -1034,11 +1187,11 @@ textarea.input {
     color var(--dur-1) var(--ease);
 }
 .jp-winbtn:hover {
-  background: color-mix(in srgb, var(--color-bg) 14%, transparent);
-  color: var(--color-bg);
+  background: color-mix(in srgb, var(--jp-on-ink) 14%, transparent);
+  color: var(--jp-on-ink);
 }
 .jp-winbtn:active {
-  background: color-mix(in srgb, var(--color-bg) 22%, transparent);
+  background: color-mix(in srgb, var(--jp-on-ink) 22%, transparent);
 }
 /* Close reads as the destructive one without shouting until it is hovered. */
 .jp-winbtn-close:hover {

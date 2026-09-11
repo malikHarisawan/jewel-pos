@@ -1,11 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router';
 import { App as AntApp, Form, Input, InputNumber, Select, Spin } from 'antd';
 import { api } from '../../lib/api.js';
 import { useCatalog } from './useCatalog.js';
-import { useSession } from '../../app/session.js';
 import { Screen } from '../../app/AppShell.js';
 import { useStickyForm } from '../../lib/useStickyForm.js';
 import { DraftBanner } from '../../lib/DraftBanner.js';
@@ -42,8 +41,6 @@ interface FormValues {
   locationId: number;
   notes?: string;
   openingPieces: number;
-  labourPaidRupees?: number;
-  landedCostRupees?: number;
 }
 
 /** A rounded surface with a small uppercase title — the form's section unit. */
@@ -123,8 +120,6 @@ function prefillFrom(d: Awaited<ReturnType<Api['items.get']>>): FormValues {
     locationId: d.locationId,
     notes: d.notes ?? undefined,
     openingPieces: 0,
-    labourPaidRupees: d.cost ? paisaToRupees(d.cost.labourPaidPaisa) : undefined,
-    landedCostRupees: d.cost ? paisaToRupees(d.cost.landedCostPaisa) : undefined,
   };
 }
 
@@ -136,9 +131,10 @@ export function ItemFormScreen() {
   const navigate = useNavigate();
   const { message } = AntApp.useApp();
   const qc = useQueryClient();
-  const { session } = useSession();
-  const isOwner = session?.role === 'OWNER';
   const [form] = Form.useForm<FormValues>();
+  /* Classification is collapsed when adding, where the defaults are usually
+     right, and open when editing, where the existing values are the point. */
+  const [showMore, setShowMore] = useState(isEdit);
 
   const catalog = useCatalog();
   const rates = useQuery({ queryKey: ['rates', 'latest'], queryFn: () => api['rates.latest']({}) });
@@ -171,8 +167,6 @@ export function ItemFormScreen() {
   const makingRate = Form.useWatch('makingRateRupees', form) ?? 0;
   const wastagePct = Form.useWatch('wastagePct', form) ?? 0;
   const hallmarkCharge = Form.useWatch('hallmarkChargeRupees', form) ?? 0;
-  const landedCost = Form.useWatch('landedCostRupees', form) ?? 0;
-  const labourPaid = Form.useWatch('labourPaidRupees', form) ?? 0;
 
   const netMg = Math.max(0, gramsToMg(grossG || 0) - gramsToMg(lessG || 0));
   const tolaMg = Number(settings.data?.tola_mg) || TOLA_MG;
@@ -209,8 +203,6 @@ export function ItemFormScreen() {
         )
       : null;
 
-  const costPaisa = rupeesToPaisa((landedCost || 0) + (labourPaid || 0));
-  const marginPaisa = preview ? preview.lineTotalPaisa - costPaisa : 0;
 
   const save = useMutation({
     mutationFn: async (v: FormValues) => {
@@ -221,12 +213,6 @@ export function ItemFormScreen() {
         v.makingMode === 'PCT_OF_METAL'
           ? Math.round((v.makingRateRupees || 0) * 100) // percent -> bp
           : rupeesToPaisa(v.makingRateRupees || 0);
-      const cost = isOwner
-        ? {
-            labourPaidPaisa: rupeesToPaisa(v.labourPaidRupees || 0),
-            landedCostPaisa: rupeesToPaisa(v.landedCostRupees || 0),
-          }
-        : undefined;
 
       const common = {
         name: v.name,
@@ -247,7 +233,6 @@ export function ItemFormScreen() {
         hallmarkChargePaisa: rupeesToPaisa(v.hallmarkChargeRupees || 0),
         locationId: v.locationId,
         notes: v.notes,
-        cost,
       };
 
       if (isEdit) {
@@ -354,6 +339,16 @@ export function ItemFormScreen() {
           hallmarkChargeRupees: 0,
           openingPieces: 1,
           locationId: c.locations[0]?.id,
+          // The server requires these; defaulting them is what lets the
+          // collapsed section stay collapsed on a normal add. First entry in
+          // each axis is the catalogue's own default (Gold / Plain / Handmade).
+          metalId: c.metals[0]?.id,
+          stoneTypeId: c.stoneTypes[0]?.id,
+          makingTypeId: c.makingTypes[0]?.id,
+          productTypeId: c.productTypes[0]?.id,
+          // Purity is deliberately NOT defaulted. It selects the rate the piece
+          // is priced from, so guessing it would misprice the shelf silently —
+          // it is the one classification worth stopping the form for.
         }}
         onValuesChange={sticky.onValuesChange}
         onFinish={(v) => save.mutate(v)}
@@ -391,40 +386,55 @@ export function ItemFormScreen() {
                   <Select options={c.locations.map((l) => ({ value: l.id, label: l.name }))} />
                 </Form.Item>
               </div>
-              <div style={grid('1fr 1fr 1fr')}>
-                <Form.Item name="metalId" label={t('items.field.metal')} rules={[{ required: true }]}>
-                  <Select options={opt(c.metals)} />
-                </Form.Item>
-                <Form.Item name="stoneTypeId" label={t('items.field.stoneType')} rules={[{ required: true }]}>
-                  <Select options={opt(c.stoneTypes)} />
-                </Form.Item>
-                <Form.Item name="makingTypeId" label={t('items.field.makingType')} rules={[{ required: true }]}>
-                  <Select options={opt(c.makingTypes)} />
-                </Form.Item>
-              </div>
-              <div style={grid('1fr 1fr 1fr')}>
-                <Form.Item name="occasionId" label={t('items.field.occasion')}>
-                  <Select allowClear options={opt(c.occasions)} />
-                </Form.Item>
-                <Form.Item name="originKind" label={t('items.field.origin')}>
-                  <Select
-                    options={[
-                      { value: 'IN_HOUSE', label: t('items.origin.inHouse') },
-                      { value: 'SUPPLIER', label: t('items.origin.supplier') },
-                      { value: 'KARIGAR', label: t('items.origin.karigar') },
-                    ]}
-                  />
-                </Form.Item>
-                {!isEdit && (
-                  <Form.Item name="trackingMode" label={t('items.field.trackingMode')}>
+              {/* Classification the server requires but the counter rarely
+                  changes. These carry sensible defaults, so adding a piece does
+                  not mean answering six dropdowns; anyone who does care can
+                  open this and set them. Kept mounted rather than unmounted so
+                  the values still submit while collapsed. */}
+              <button
+                type="button"
+                className="btn btn-ghost"
+                style={{ fontSize: 12.5, padding: '4px 0' }}
+                onClick={() => setShowMore((v) => !v)}
+              >
+                {showMore ? '− Hide details' : '+ More details'}
+              </button>
+              <div style={{ display: showMore ? 'block' : 'none', marginTop: 12 }}>
+                <div style={grid('1fr 1fr 1fr')}>
+                  <Form.Item name="metalId" label={t('items.field.metal')} rules={[{ required: true }]}>
+                    <Select options={opt(c.metals)} />
+                  </Form.Item>
+                  <Form.Item name="stoneTypeId" label={t('items.field.stoneType')} rules={[{ required: true }]}>
+                    <Select options={opt(c.stoneTypes)} />
+                  </Form.Item>
+                  <Form.Item name="makingTypeId" label={t('items.field.makingType')} rules={[{ required: true }]}>
+                    <Select options={opt(c.makingTypes)} />
+                  </Form.Item>
+                </div>
+                <div style={grid('1fr 1fr 1fr')}>
+                  <Form.Item name="occasionId" label={t('items.field.occasion')}>
+                    <Select allowClear options={opt(c.occasions)} />
+                  </Form.Item>
+                  <Form.Item name="originKind" label={t('items.field.origin')}>
                     <Select
                       options={[
-                        { value: 'ITEM', label: t('items.trackingItem') },
-                        { value: 'LOT', label: t('items.trackingLot') },
+                        { value: 'IN_HOUSE', label: t('items.origin.inHouse') },
+                        { value: 'SUPPLIER', label: t('items.origin.supplier') },
+                        { value: 'KARIGAR', label: t('items.origin.karigar') },
                       ]}
                     />
                   </Form.Item>
-                )}
+                  {!isEdit && (
+                    <Form.Item name="trackingMode" label={t('items.field.trackingMode')}>
+                      <Select
+                        options={[
+                          { value: 'ITEM', label: t('items.trackingItem') },
+                          { value: 'LOT', label: t('items.trackingLot') },
+                        ]}
+                      />
+                    </Form.Item>
+                  )}
+                </div>
               </div>
             </Section>
 
@@ -480,7 +490,7 @@ export function ItemFormScreen() {
             </Section>
 
             <Section title={t('items.section.charges')}>
-              <div style={grid('1.2fr 1fr .8fr 1fr')}>
+              <div style={grid('1.2fr 1fr')}>
                 <Form.Item name="makingMode" label={t('items.field.makingMode')}>
                   <Select
                     options={[
@@ -503,86 +513,23 @@ export function ItemFormScreen() {
                     style={{ width: '100%' }}
                   />
                 </Form.Item>
-                <Form.Item name="wastagePct" label={t('items.field.wastagePct')}>
-                  <InputNumber className="jp-num" min={0} step={0.1} style={{ width: '100%' }} />
-                </Form.Item>
-                <Form.Item name="hallmarkChargeRupees" label={t('items.field.hallmarkCharge')}>
-                  <InputNumber className="jp-num" min={0} step={1} style={{ width: '100%' }} />
-                </Form.Item>
               </div>
-              <div style={grid('1fr')}>
-                <Form.Item name="hallmarkNumber" label={t('items.field.hallmarkNo')}>
-                  <Input className="jp-num" />
-                </Form.Item>
+              {/* Wastage and hallmarking apply to some pieces, not most, and
+                  they default to zero. Behind the same toggle as the rest. */}
+              <div style={{ display: showMore ? 'block' : 'none' }}>
+                <div style={grid('1fr 1fr 1.4fr')}>
+                  <Form.Item name="wastagePct" label={t('items.field.wastagePct')}>
+                    <InputNumber className="jp-num" min={0} step={0.1} style={{ width: '100%' }} />
+                  </Form.Item>
+                  <Form.Item name="hallmarkChargeRupees" label={t('items.field.hallmarkCharge')}>
+                    <InputNumber className="jp-num" min={0} step={1} style={{ width: '100%' }} />
+                  </Form.Item>
+                  <Form.Item name="hallmarkNumber" label={t('items.field.hallmarkNo')}>
+                    <Input className="jp-num" />
+                  </Form.Item>
+                </div>
               </div>
             </Section>
-
-            {/* Cost and margin are hidden by role, not merely disabled — a
-                manager never sees the number at all. */}
-            {isOwner && (
-              <Section
-                title={t('items.section.cost')}
-                hint={t('items.costHint')}
-                dark
-              >
-                <div style={{ ...grid('1fr 1fr'), alignItems: 'start' }}>
-                  <Form.Item
-                    name="landedCostRupees"
-                    label={t('items.field.landedCost')}
-                    extra={t('items.field.landedCostHint')}
-                  >
-                    <InputNumber className="jp-num" min={0} step={1} style={{ width: '100%' }} />
-                  </Form.Item>
-                  <Form.Item
-                    name="labourPaidRupees"
-                    label={t('items.field.labourPaid')}
-                    extra={t('items.field.labourPaidHint')}
-                  >
-                    <InputNumber className="jp-num" min={0} step={1} style={{ width: '100%' }} />
-                  </Form.Item>
-                </div>
-
-                {/* Profit reads as its own settled row rather than a third
-                    input-shaped column — it is an output, and the empty state
-                    has to say which input is still missing. */}
-                <div
-                  style={{
-                    marginTop: 4,
-                    padding: '12px 14px',
-                    borderRadius: 16,
-                    background: 'color-mix(in srgb, var(--color-bg) 8%, transparent)',
-                    border: '1px solid color-mix(in srgb, var(--color-bg) 16%, transparent)',
-                  }}
-                >
-                  <div style={{ fontSize: 11, opacity: 0.65, marginBottom: 4 }}>
-                    {t('items.margin.label')}
-                  </div>
-                  {preview && costPaisa ? (
-                    <>
-                      <div
-                        className="jp-figure"
-                        style={{
-                          fontSize: 20,
-                          color:
-                            marginPaisa > 0
-                              ? 'var(--color-accent-2-300)'
-                              : 'var(--color-accent-300)',
-                        }}
-                      >
-                        {`${rs(marginPaisa)} · ${Math.round((marginPaisa / preview.lineTotalPaisa) * 1000) / 10}%`}
-                      </div>
-                      <div style={{ fontSize: 11, opacity: 0.5, marginTop: 4 }}>
-                        {t('items.margin.hint')}
-                      </div>
-                    </>
-                  ) : (
-                    <div style={{ fontSize: 12.5, opacity: 0.55 }}>
-                      {costPaisa ? t('items.margin.needRate') : t('items.margin.needCost')}
-                    </div>
-                  )}
-                </div>
-              </Section>
-            )}
 
             {!isEdit && (
               <Section

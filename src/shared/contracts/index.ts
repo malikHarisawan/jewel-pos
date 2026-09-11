@@ -286,6 +286,11 @@ export const MovementDTO = z.object({
 
 export const ListMovementsInput = z.object({
   itemId: z.number().int().optional(),
+  /** Restrict to these movement types. The Purchases screen asks for the
+   * stock-in kinds only; filtering in SQL rather than in the renderer keeps
+   * `limit` meaningful — a client-side filter would silently return fewer rows
+   * than asked for once sales outnumber purchases. */
+  types: z.array(MovementTypeSchema).nonempty().optional(),
   limit: z.number().int().min(1).max(1000).default(200),
 });
 export const ListMovementsOutput = z.array(MovementDTO);
@@ -421,6 +426,11 @@ export const CheckoutPaymentInput = z.object({
 
 export const CheckoutInput = z.object({
   customerId: z.number().int().nullable().optional(),
+  /** A name to print on this bill, for a customer with no account. Independent
+   * of `customerId`: that one says whose ledger the sale belongs to (and is what
+   * udhaar needs), this one only says what to print. A shop should not have to
+   * open an account just to put a name on a cash bill. */
+  customerNameText: z.string().trim().max(120).nullable().optional(),
   saleLines: z.array(CheckoutSaleLineInput).min(1),
   oldGoldLines: z.array(CheckoutOldGoldInput).default([]),
   payments: z.array(CheckoutPaymentInput).min(1),
@@ -601,6 +611,105 @@ export const ExportCsvOutput = z.object({
   folder: z.string(),
   tables: z.array(ExportedTableDTO),
   totalRows: z.number().int(),
+});
+
+// ---- spreadsheet import ---------------------------------------------------
+
+/** Weight units a sheet's weight columns may be written in. */
+export const SheetWeightUnitSchema = z.enum(['g', 'mg', 'tola']);
+
+/** One import field the UI can bind to a spreadsheet column. */
+export const ImportFieldDTO = z.object({
+  key: z.string(),
+  label: z.string(),
+  required: z.boolean(),
+});
+export const ImportFieldsOutput = z.array(ImportFieldDTO);
+
+/** The file the user picked. `path` is kept main-side and echoed back so the
+ * renderer can pass it to analyse/commit without ever handling file contents. */
+export const PickImportFileOutput = z.object({
+  /** Absolute path, or null when the user cancelled the open dialog. */
+  path: z.string().nullable(),
+  /** Filename only, for display. */
+  name: z.string().nullable(),
+});
+
+/** How one spreadsheet row came out of validation. */
+/**
+ * One parsed row, described the way the Items screen describes an item.
+ *
+ * `preview` deliberately carries RESOLVED values, not the sheet's raw text: the
+ * whole point of previewing is to show what the row will BECOME. A sheet cell
+ * reading "22" is not useful confirmation — "22K / 916" is, because that is the
+ * purity the item will actually carry, and a wrong match is visible at a glance.
+ *
+ * Fields are null when the row failed before that value could be worked out.
+ */
+export const ImportRowDTO = z.object({
+  rowNumber: z.number().int(),
+  ok: z.boolean(),
+  errors: z.array(z.string()),
+  warnings: z.array(z.string()),
+  preview: z.object({
+    /** Blank when the sheet gave no tag — one is allocated at import. */
+    tag: z.string(),
+    name: z.string(),
+    /** UNIQUE (one tagged piece) or LOT (several of one description). */
+    trackingMode: TrackingModeSchema.nullable(),
+    productType: z.string().nullable(),
+    metal: z.string().nullable(),
+    purity: z.string().nullable(),
+    location: z.string().nullable(),
+    grossMg: z.number().int().nullable(),
+    lessMg: z.number().int().nullable(),
+    netMg: z.number().int().nullable(),
+    pieces: z.number().int().nullable(),
+    makingMode: MakingModeSchema.nullable(),
+    makingRatePaisa: z.number().int().nullable(),
+    wastageBp: z.number().int().nullable(),
+  }),
+});
+
+export const AnalyseImportInput = z.object({
+  filePath: z.string().min(1),
+  sheetName: z.string().optional(),
+  /** Field key -> header text. Overrides the auto-guess. */
+  mapping: z.record(z.string(), z.string()).optional(),
+  weightUnit: SheetWeightUnitSchema.optional(),
+});
+
+export const AnalyseImportOutput = z.object({
+  sheetNames: z.array(z.string()),
+  sheetName: z.string(),
+  headers: z.array(z.string()),
+  mapping: z.record(z.string(), z.string()),
+  missingRequired: z.array(z.string()),
+  rows: z.array(ImportRowDTO),
+  totalRows: z.number().int(),
+  okRows: z.number().int(),
+  errorRows: z.number().int(),
+});
+
+export const CommitImportInput = AnalyseImportInput.extend({
+  /** Spreadsheet row numbers to import. Omitted means every valid row. */
+  rowNumbers: z.array(z.number().int()).optional(),
+  /** Post OPENING stock movements so the imported pieces are in stock. */
+  postOpeningStock: z.boolean().default(true),
+});
+
+export const CommitImportOutput = z.object({
+  imported: z.number().int(),
+  openingMovements: z.number().int(),
+});
+
+/** Where a receipt PDF landed. The renderer shows the path so the shopkeeper
+ * can find the file without digging through the exports tree. */
+export const SaveReceiptPdfInput = z.object({ id: z.number().int() });
+export const SaveReceiptPdfOutput = z.object({
+  /** Absolute path of the written file, or null when the user cancelled the
+   * save dialog. Cancelling is a normal outcome, not an error. */
+  path: z.string().nullable(),
 });
 
 // ---- parties (customers / suppliers / karigars) ---------------------------
@@ -908,6 +1017,18 @@ export const contract = {
   // A CSV dump contains every table in plain text, so it is owner-only for the
   // same reason backups are.
   'export.csv': { input: z.object({}), output: ExportCsvOutput, roles: ['OWNER'] },
+  // Saving a receipt as PDF is the same act as printing one, so it carries the
+  // same permission as `sales.getInvoice`: anyone who may see the receipt may
+  // keep a copy of it.
+  'export.receiptPdf': { input: SaveReceiptPdfInput, output: SaveReceiptPdfOutput },
+
+  // Spreadsheet import. Bulk-creating inventory is a bigger act than adding one
+  // item, and a bad sheet can bury the shop's stock in wrong weights, so it sits
+  // one rung above `items.create`: owner only.
+  'import.fields': { input: z.object({}), output: ImportFieldsOutput, roles: ['OWNER'] },
+  'import.pickFile': { input: z.object({}), output: PickImportFileOutput, roles: ['OWNER'] },
+  'import.analyse': { input: AnalyseImportInput, output: AnalyseImportOutput, roles: ['OWNER'] },
+  'import.commit': { input: CommitImportInput, output: CommitImportOutput, roles: ['OWNER'] },
   'parties.list': { input: ListPartiesInput, output: ListPartiesOutput },
   // A salesman can register a walk-in customer — a credit sale to a first-time
   // buyer must not require fetching the owner.

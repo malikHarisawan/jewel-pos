@@ -12,13 +12,16 @@
     "test": "vitest run",
     "seed:demo": "vitest run tests/e2eDemo.test.ts",
     "smoke": "node tests/smoke/smoke.mjs",
+    "smoke:import": "node tests/smoke/import-ui.mjs",
     "demo": "node tests/smoke/demo.mjs",
+    "samples": "node scripts/make-sample-sheets.mjs",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
     "db:generate": "drizzle-kit generate",
     "lint": "eslint .",
     "dist": "electron-vite build && electron-builder --win --x64",
-    "verify": "npm run typecheck && npm run lint && npm run test"
+    "verify": "npm run typecheck && npm run lint && npm run test",
+    "scenarios": "node tests/smoke/scenarios.mjs"
   },
   "keywords": [],
   "author": "Jewel POS",
@@ -37,6 +40,7 @@
     "react-dom": "^19.2.8",
     "react-i18next": "^17.0.11",
     "react-router": "^7.18.1",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^4.4.3"
   },
   "devDependencies": {

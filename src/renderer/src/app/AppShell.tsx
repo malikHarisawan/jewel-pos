@@ -261,7 +261,7 @@ export function AppShell() {
             gap: 14,
             padding: '0 8px 0 14px',
             background: 'var(--jp-ink)',
-            color: 'var(--color-bg)',
+            color: 'var(--jp-on-ink)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 9, whiteSpace: 'nowrap' }}>
@@ -355,9 +355,9 @@ export function AppShell() {
                 width: 26,
                 height: 26,
                 borderRadius: 999,
-                border: '1px solid color-mix(in srgb, var(--color-bg) 28%, transparent)',
+                border: '1px solid color-mix(in srgb, var(--jp-on-ink) 28%, transparent)',
                 background: 'transparent',
-                color: 'var(--color-bg)',
+                color: 'var(--jp-on-ink)',
                 cursor: 'pointer',
                 display: 'grid',
                 placeItems: 'center',
@@ -377,8 +377,8 @@ export function AppShell() {
             style={{
               width: 224,
               flex: 'none',
-              background: 'var(--color-accent-900)',
-              color: 'var(--color-bg)',
+              background: 'var(--jp-ink)',
+              color: 'var(--jp-on-ink)',
               display: 'flex',
               flexDirection: 'column',
               padding: '14px 12px 12px',

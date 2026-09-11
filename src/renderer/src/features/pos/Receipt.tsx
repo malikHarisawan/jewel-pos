@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Modal, Spin } from 'antd';
+import { App as AntApp, Modal, Spin } from 'antd';
 import { api } from '../../lib/api.js';
 import { amount, rs, rsSigned, g, stamp } from '../../lib/format.js';
 import type { z } from 'zod';
@@ -20,12 +21,32 @@ interface Props {
  * and leaves only `.receipt`. ESC/POS thermal printing lands in a later pass. */
 export function Receipt({ invoiceId, open, onClose }: Props) {
   const { t } = useTranslation();
+  const { message } = AntApp.useApp();
   const inv = useQuery({
     queryKey: ['sales', 'invoice', invoiceId],
     queryFn: () => api['sales.getInvoice']({ id: invoiceId! }),
     enabled: open && invoiceId != null,
   });
   const settings = useQuery({ queryKey: ['settings'], queryFn: () => api['settings.get']({}) });
+
+  // Saving runs in the main process (it owns the window that renders the PDF),
+  // so the button is disabled while it works rather than letting a second click
+  // open a second save dialog behind the first.
+  const [saving, setSaving] = useState(false);
+  async function savePdf(): Promise<void> {
+    if (invoiceId == null) return;
+    setSaving(true);
+    try {
+      const res = await api['export.receiptPdf']({ id: invoiceId });
+      // A null path means the user cancelled the dialog; that is not a failure
+      // and must not be reported as one.
+      if (res.path) message.success(t('pos.pdfSaved', { path: res.path }));
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <Modal
@@ -62,6 +83,9 @@ export function Receipt({ invoiceId, open, onClose }: Props) {
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn btn-secondary" onClick={onClose}>
                 {t('common.close')}
+              </button>
+              <button className="btn btn-secondary" onClick={savePdf} disabled={saving}>
+                {saving ? t('pos.savingPdf') : t('pos.savePdf')}
               </button>
               <button className="btn btn-primary" onClick={() => window.print()}>
                 {t('pos.print')} · Ctrl P
@@ -108,6 +132,9 @@ function ReceiptBody({
   return (
     <div
       className="receipt"
+      /* The main process reads this before printing to PDF, to confirm the
+       * invoice it was asked to save is the one actually on screen. */
+      data-invoice-id={inv.id}
       style={{
         background: '#fff',
         color: 'var(--color-text)',

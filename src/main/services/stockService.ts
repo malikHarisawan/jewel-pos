@@ -100,8 +100,20 @@ interface MovementJoinRow {
 }
 
 export function listMovements(db: DB, input: ListMoves) {
-  const where = input.itemId != null ? 'WHERE m.item_id = ?' : '';
-  const params: unknown[] = input.itemId != null ? [input.itemId] : [];
+  const clauses: string[] = [];
+  const params: unknown[] = [];
+  if (input.itemId != null) {
+    clauses.push('m.item_id = ?');
+    params.push(input.itemId);
+  }
+  if (input.types?.length) {
+    // Placeholders are generated from the array length and the values are
+    // bound, so the type list cannot inject SQL even though it shapes the
+    // query text.
+    clauses.push(`m.movement_type IN (${input.types.map(() => '?').join(',')})`);
+    params.push(...input.types);
+  }
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
   const rows = db
     .prepare(
       `SELECT m.id, m.movement_type, m.item_id, i.name AS item_name, i.tag_number,
