@@ -14,6 +14,7 @@
     "smoke": "node tests/smoke/smoke.mjs",
     "smoke:import": "node tests/smoke/import-ui.mjs",
     "demo": "node tests/smoke/demo.mjs",
+    "demo:setup": "node tests/smoke/setup-demo.mjs",
     "samples": "node scripts/make-sample-sheets.mjs",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",

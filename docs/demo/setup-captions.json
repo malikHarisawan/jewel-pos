@@ -1,0 +1,122 @@
+[
+  {
+    "at": 1.2,
+    "text": "Your first sign-in. The app ships with one account: owner / 1234"
+  },
+  {
+    "at": 9.5,
+    "text": "The app now insists you pick your own PIN — 1234 is printed in the manual"
+  },
+  {
+    "at": 14.9,
+    "text": "Choose something only you know. There is no back door if you forget it"
+  },
+  {
+    "at": 20.4,
+    "text": "This is a brand-new shop: no rate, no stock, nothing to sell yet"
+  },
+  {
+    "at": 24,
+    "text": "Three things to set up — your shop details, today’s rate, then your stock"
+  },
+  {
+    "at": 27.4,
+    "text": "Step 1 — Settings. Your shop name prints on every bill"
+  },
+  {
+    "at": 39,
+    "text": "Set the idle lock too — the counter returns to sign-in when left alone"
+  },
+  {
+    "at": 43.9,
+    "text": "Tax and rounding live here as well. \"Gold exempt\" is the FBR treatment"
+  },
+  {
+    "at": 47.1,
+    "text": "Step 2 — post today’s gold rate. Do this every morning"
+  },
+  {
+    "at": 50.2,
+    "text": "Quote it the way your market does — per tola, per gram, or per 10 grams"
+  },
+  {
+    "at": 60,
+    "text": "The app converts it to per-gram for you — check the figure, then post"
+  },
+  {
+    "at": 65.6,
+    "text": "Nothing is stored as a price. Post a new rate and every item reprices"
+  },
+  {
+    "at": 68.8,
+    "text": "Step 3 — your stock. Most shops already have it in Excel"
+  },
+  {
+    "at": 74.1,
+    "text": "Import from a spreadsheet — no need to retype hundreds of pieces"
+  },
+  {
+    "at": 80.8,
+    "text": "It reads your column names — \"Gross Wt\", \"Net Wt\", purity, making charge"
+  },
+  {
+    "at": 84.2,
+    "text": "Every row is shown BEFORE anything is saved. Nothing is written yet"
+  },
+  {
+    "at": 90.4,
+    "text": "Weights in tola instead of grams? Switch the unit and the preview follows"
+  },
+  {
+    "at": 93.4,
+    "text": "A row it cannot read is listed with the reason, and simply skipped"
+  },
+  {
+    "at": 96.6,
+    "text": "Happy with the preview? Import — and only now is anything written"
+  },
+  {
+    "at": 102.5,
+    "text": "Opening stock is posted at the same time, so your ledger starts balanced"
+  },
+  {
+    "at": 105.5,
+    "text": "Your catalogue — imported, and already priced at today’s rate"
+  },
+  {
+    "at": 109,
+    "text": "No price was ever typed. Weight, purity and making charge produce it"
+  },
+  {
+    "at": 112.6,
+    "text": "You are open for business. Ringing up the first sale"
+  },
+  {
+    "at": 115.4,
+    "text": "Scan the tag, or type the name and press Enter"
+  },
+  {
+    "at": 120.7,
+    "text": "The bill builds itself — metal, making and wastage at today’s rate"
+  },
+  {
+    "at": 124.1,
+    "text": "F9 finishes the sale. The receipt opens, and stock drops by one"
+  },
+  {
+    "at": 127.6,
+    "text": "Hand it to the customer, or Ctrl-P to print"
+  },
+  {
+    "at": 131.9,
+    "text": "Add your counter staff under Settings — each picks their own PIN"
+  },
+  {
+    "at": 134.9,
+    "text": "Backups run on their own: every 4 hours, on close, and before an upgrade"
+  },
+  {
+    "at": 138.1,
+    "text": "That is the setup. Post the rate each morning — the rest is selling"
+  }
+]

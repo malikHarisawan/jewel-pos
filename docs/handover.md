@@ -163,6 +163,25 @@ npm run smoke       # drives the real app, walks every screen, writes screenshot
 npm run dist        # -> dist/Jewel POS Setup 1.1.0.exe
 ```
 
+### The two videos
+
+```
+npm run demo         # -> docs/demo/jewel-pos-demo.webm    a tour of a working shop
+npm run demo:setup   # -> docs/demo/jewel-pos-setup.webm   day one, from an empty install
+```
+
+Both drive the real application, so a UI change dates them — re-record and the
+video is current again. `demo:setup` starts from an *unseeded* shop and walks
+what a new owner actually does: first sign-in, the forced PIN change, shop
+details, posting a rate, importing stock from a spreadsheet, the first sale.
+
+It checks itself against the sandbox database afterwards and exits non-zero if
+a narrated step left no rows behind — a caption is only this script's own
+claim, and an early cut narrated a rate that was never saved.
+
+The client-facing guide wraps that video with the download and install steps
+(which happen outside the app, where Playwright cannot follow).
+
 `verify` proves the rules; `smoke` proves the app still opens. The unit tests
 never click a button, so a blank screen or a missing font passes `verify` and
 fails `smoke`. Run both before shipping, and look at the screenshots it leaves
