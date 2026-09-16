@@ -670,9 +670,17 @@ export function checkout(db: DB, userId: number, input: CheckoutInput): Finalize
     const lockStmt = db.prepare(
       `INSERT INTO document_rate_locks (document_id, purity_id, metal_rate_id) VALUES (?,?,?)`,
     );
+    const purityLabelStmt = db.prepare(`SELECT label FROM purities WHERE id=?`);
     for (const purityId of purityIds) {
       const rate = latestRateStmt.get(purityId) as { id: number } | undefined;
-      if (!rate) throw new Error(`no rate set for purity ${purityId}; enter today's rate first`);
+      if (!rate) {
+        // The message a cashier reads mid-sale has to say what to DO. A purity
+        // id names nothing they can act on; the label plus the key does.
+        const label =
+          (purityLabelStmt.get(purityId) as { label: string } | undefined)?.label ??
+          `purity ${purityId}`;
+        throw new Error(`Post today's ${label} rate before selling it — press F4.`);
+      }
       lockStmt.run(documentId, purityId, rate.id);
     }
 
@@ -901,7 +909,15 @@ export function finalizeInvoice(
     const targetTotal = totals.grandTotalPaisa + adjustment;
     const tolerance = input.roundTo; // e.g. 100 paisa = up to Rs 1 either way
     if (Math.abs(paid - targetTotal) > tolerance) {
-      throw new Error(`payments (${paid}) do not cover grand total (${targetTotal})`);
+      // Raw paisa in a counter-facing message is unreadable; a cashier needs to
+      // see the rupee figures they are reconciling and which way they are out.
+      const rsOf = (p: number) => `Rs ${(p / 100).toFixed(2)}`;
+      const short = targetTotal - paid;
+      throw new Error(
+        short > 0
+          ? `Payments are ${rsOf(short)} short of the ${rsOf(targetTotal)} bill.`
+          : `Payments are ${rsOf(-short)} over the ${rsOf(targetTotal)} bill.`,
+      );
     }
     if (paid < 0) {
       throw new Error('sale total cannot be negative');

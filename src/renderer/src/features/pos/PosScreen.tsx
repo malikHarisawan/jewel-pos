@@ -41,6 +41,8 @@ export function PosScreen() {
   const { message } = AntApp.useApp();
   const catalog = useCatalog();
   const { session } = useSession();
+  // Mirrors the roles on `rates.enter`: only these can act on a stale rate.
+  const canPostRates = session?.role === 'OWNER' || session?.role === 'MANAGER';
 
   const [cart, setCart] = useStickyState<CartLine[]>('pos.cart', []);
   const [oldGold, setOldGold] = useStickyState<OldGoldLine[]>('pos.oldGold', []);
@@ -165,6 +167,16 @@ export function PosScreen() {
   }
 
   const rates = useQuery({ queryKey: ['rates', 'latest'], queryFn: () => api['rates.latest']({}) });
+  /* Selling a full day behind the market is a silent, expensive mistake, and a
+     salesman cannot post a rate to fix it — so the counter is told, plainly,
+     rather than left to notice. */
+  const rateBoard = useQuery({
+    queryKey: ['rates', 'morningBoard'],
+    queryFn: () => api['rates.morningBoard']({ tzOffsetMinutes: new Date().getTimezoneOffset() }),
+  });
+  const stalePurities = (rateBoard.data?.purities ?? []).filter(
+    (p) => p.isStale && p.lastRatePaisaPerGram != null,
+  );
   /** Purity id → label, for naming the exact rate a blocked line is waiting on. */
   const purityLabel = useMemo(() => {
     const m = new Map<number, string>();
@@ -396,6 +408,24 @@ export function PosScreen() {
           overflow: 'auto',
         }}
       >
+        {stalePurities.length > 0 && (
+          <div
+            style={{
+              background: 'var(--color-surface)',
+              borderInlineStart: '3px solid var(--color-warning, #b8860b)',
+              borderRadius: 14,
+              padding: '10px 14px',
+              marginBottom: 12,
+              fontSize: 12.5,
+              lineHeight: 1.5,
+            }}
+          >
+            <strong>Today’s rate has not been posted</strong> for{' '}
+            {stalePurities.map((p) => p.label).join(', ')}. Selling now uses yesterday’s rate.
+            {canPostRates ? ' Press F4 to post it.' : ' Ask the owner to post it.'}
+          </div>
+        )}
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
           <div style={{ flex: 1, position: 'relative' }}>
             <input

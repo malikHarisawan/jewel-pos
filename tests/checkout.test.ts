@@ -121,7 +121,7 @@ describe('checkout (one-call POS sale)', () => {
         oldGoldLines: [],
         payments: [{ method: 'CASH', amountPaisa: 1 }],
       }),
-    ).toThrow(/no rate set/);
+    ).toThrow(/Post today's .* rate before selling it/);
     // nothing persisted
     expect(getBalance(db, ring).pieces).toBe(1);
     expect(db.prepare('SELECT count(*) c FROM documents').get()).toEqual({ c: 0 });
@@ -218,7 +218,7 @@ describe('checkout (one-call POS sale)', () => {
         oldGoldLines: [],
         payments: [{ method: 'CASH', amountPaisa: 25_515_000 }], // full computed, ignores discount
       }),
-    ).toThrow(/do not cover/);
+    ).toThrow(/Payments are Rs .* (over|short of) the Rs .* bill/);
   });
 
   it('getInvoice returns the finalized invoice for the receipt', () => {

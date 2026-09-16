@@ -135,7 +135,7 @@ describe('invoice finalize', () => {
         scrapLocationId: 1,
         role: 'OWNER',
       }),
-    ).toThrow(/do not cover/);
+    ).toThrow(/Payments are Rs .* (over|short of) the Rs .* bill/);
 
     // Atomicity: item still in stock, no lines, no movements from the sale, doc still DRAFT.
     expect(getBalance(db, ring).netMg).toBe(10_000);
