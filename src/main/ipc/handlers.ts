@@ -21,7 +21,12 @@ import {
   previewDerivedRates,
 } from '../services/rateService.js';
 import { fetchRateSuggestion } from '../services/rateSuggestionService.js';
-import { profitReport, deadStockReport } from '../services/reportService.js';
+import {
+  profitReport,
+  deadStockReport,
+  itemsMissingCost,
+  backfillIntakeRate,
+} from '../services/reportService.js';
 import { setupStatus, applySetup } from '../services/setupService.js';
 import {
   checkout,
@@ -411,6 +416,17 @@ export const handlers: Handlers = {
   'reports.profit': (ctx, input) => profitReport(ctx.db, input.fromDate, input.toDate),
   'reports.deadStock': (ctx, input) =>
     deadStockReport(ctx.db, input.thresholdDays, input.limit),
+  'reports.missingCost': (ctx, input) => itemsMissingCost(ctx.db, input.limit),
+  'reports.backfillIntakeRate': (ctx, input) => {
+    const session = ctx.auth.requireSession();
+    const pieces = backfillIntakeRate(
+      ctx.db,
+      session.userId,
+      input.purityId,
+      input.ratePaisaPerGram,
+    );
+    return { pieces };
+  },
 
   'setup.status': (ctx) => setupStatus(ctx.db),
   'setup.apply': (ctx, input) => {

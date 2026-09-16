@@ -3,7 +3,12 @@ import { openDatabase, type DB } from '../src/main/db/connection.js';
 import { createItem } from '../src/main/services/itemService.js';
 import { enterRate } from '../src/main/services/rateService.js';
 import { checkout } from '../src/main/services/invoiceService.js';
-import { profitReport, deadStockReport } from '../src/main/services/reportService.js';
+import {
+  profitReport,
+  deadStockReport,
+  itemsMissingCost,
+  backfillIntakeRate,
+} from '../src/main/services/reportService.js';
 import { CreateItemInput } from '../src/shared/contracts/index.js';
 import type { z } from 'zod';
 
@@ -286,5 +291,104 @@ describe('deadStockReport', () => {
 
     expect(deadStockReport(db, 180).itemCount).toBe(0);
     expect(deadStockReport(db, 60).itemCount).toBe(1);
+  });
+});
+
+describe('itemsMissingCost', () => {
+  it('lists a piece with no purchase rate recorded', () => {
+    makeRing(db, 'R1', 20_000);
+    const rows = itemsMissingCost(db);
+    expect(rows.map((r) => r.tagNumber)).toEqual(['R1']);
+    expect(rows[0].purityLabel).toBe('22K / 916');
+  });
+
+  it('drops a piece once its rate is known', () => {
+    const ring = makeRing(db, 'R1', 20_000);
+    setIntakeRate(db, ring, 2_400_000);
+    expect(itemsMissingCost(db)).toEqual([]);
+  });
+
+  it('still lists a sold piece, and says so', () => {
+    // A sold piece's cost can no longer be observed, but recording it still
+    // completes the profit figure on that past sale.
+    const ring = makeRing(db, 'R1', 20_000);
+    sell(db, ring, 20_000);
+    const rows = itemsMissingCost(db);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].isSold).toBe(true);
+  });
+});
+
+describe('backfillIntakeRate', () => {
+  it('fills every piece of a purity that has no rate', () => {
+    makeRing(db, 'R1', 20_000);
+    makeRing(db, 'R2', 15_000);
+
+    const n = backfillIntakeRate(db, 1, purity(db, '22K / 916'), 2_400_000);
+    expect(n).toBe(2);
+    expect(itemsMissingCost(db)).toEqual([]);
+  });
+
+  it('never overwrites a rate someone entered by hand', () => {
+    const typed = makeRing(db, 'TYPED', 20_000);
+    const blank = makeRing(db, 'BLANK', 20_000);
+    setIntakeRate(db, typed, 2_600_000);
+
+    const n = backfillIntakeRate(db, 1, purity(db, '22K / 916'), 2_400_000);
+    expect(n).toBe(1);
+
+    const kept = db
+      .prepare('SELECT intake_rate_paisa_per_gram AS r FROM item_costs WHERE item_id=?')
+      .get(typed) as { r: number };
+    expect(kept.r).toBe(2_600_000);
+
+    const filled = db
+      .prepare('SELECT intake_rate_paisa_per_gram AS r FROM item_costs WHERE item_id=?')
+      .get(blank) as { r: number };
+    expect(filled.r).toBe(2_400_000);
+  });
+
+  it('fills a rate onto a cost row that only had labour', () => {
+    // The INSERT..SELECT path skips these, so the UPDATE pass must catch them.
+    const ring = makeRing(db, 'R1', 20_000);
+    db.prepare(
+      `INSERT INTO item_costs (item_id, labour_paid_paisa, updated_by) VALUES (?, 500000, 1)`,
+    ).run(ring);
+
+    expect(backfillIntakeRate(db, 1, purity(db, '22K / 916'), 2_400_000)).toBe(1);
+    const row = db
+      .prepare(
+        'SELECT intake_rate_paisa_per_gram AS r, labour_paid_paisa AS l FROM item_costs WHERE item_id=?',
+      )
+      .get(ring) as { r: number; l: number };
+    expect(row.r).toBe(2_400_000);
+    // The labour figure that was already there survives.
+    expect(row.l).toBe(500_000);
+  });
+
+  it('leaves other purities alone', () => {
+    makeRing(db, 'GOLD22', 20_000);
+    makeRing(db, 'GOLD24', 20_000, { purityId: purity(db, '24K / 999') });
+
+    backfillIntakeRate(db, 1, purity(db, '22K / 916'), 2_400_000);
+    expect(itemsMissingCost(db).map((r) => r.tagNumber)).toEqual(['GOLD24']);
+  });
+
+  it('refuses a zero or negative rate', () => {
+    // "Bought free" would report the whole sale price as profit.
+    expect(() => backfillIntakeRate(db, 1, purity(db, '22K / 916'), 0)).toThrow(/more than zero/);
+  });
+
+  it('completes the profit report it was missing', () => {
+    const ring = makeRing(db, 'R1', 20_000);
+    sell(db, ring, 20_000);
+    expect(profitReport(db, '2026-07-01', '2026-07-31').invoicesMissingCost).toBe(1);
+
+    backfillIntakeRate(db, 1, purity(db, '22K / 916'), 2_400_000);
+
+    const r = profitReport(db, '2026-07-01', '2026-07-31');
+    expect(r.invoicesMissingCost).toBe(0);
+    expect(r.metalGainPaisa).toBe(2_000_000);
+    expect(r.totalProfitPaisa).toBe(3_000_000);
   });
 });

@@ -15,6 +15,7 @@
  * here writes, so a report can never disturb the books.
  */
 import type { DB } from '../db/connection.js';
+import { withAudit } from '../db/audit.js';
 
 // ---- profit ---------------------------------------------------------------
 
@@ -242,4 +243,121 @@ export function deadStockReport(db: DB, thresholdDays = 180, limit = 200): DeadS
     totalLockedPaisa: out.reduce((a, r) => a + r.lockedValuePaisa, 0),
     rows: out,
   };
+}
+
+// ---- missing cost basis -----------------------------------------------------
+
+export interface MissingCostRow {
+  itemId: number;
+  name: string;
+  tagNumber: string | null;
+  purityId: number;
+  purityLabel: string;
+  netMg: number;
+  /** True once the piece has been sold — its cost can no longer be observed,
+   * but recording it still completes the profit figure for that past sale. */
+  isSold: boolean;
+}
+
+/**
+ * Pieces with no purchase rate recorded.
+ *
+ * This is the gap that makes the profit report say "gold movement unknown".
+ * Every shop that imported a catalogue, or added stock before this field
+ * existed, starts here — so the report needs to lead the owner to the fix
+ * rather than just naming the problem.
+ */
+export function itemsMissingCost(db: DB, limit = 500): MissingCostRow[] {
+  const rows = db
+    .prepare(
+      `SELECT i.id, i.name, i.tag_number, i.net_mg, i.status,
+              i.purity_id, pu.label AS purity_label
+       FROM items i
+       JOIN purities pu ON pu.id = i.purity_id
+       LEFT JOIN item_costs ic ON ic.item_id = i.id
+       WHERE ic.intake_rate_paisa_per_gram IS NULL
+       ORDER BY i.id DESC
+       LIMIT ?`,
+    )
+    .all(limit) as Array<{
+    id: number;
+    name: string;
+    tag_number: string | null;
+    net_mg: number;
+    status: string;
+    purity_id: number;
+    purity_label: string;
+  }>;
+
+  return rows.map((r) => ({
+    itemId: r.id,
+    name: r.name,
+    tagNumber: r.tag_number,
+    purityId: r.purity_id,
+    purityLabel: r.purity_label,
+    netMg: r.net_mg,
+    isSold: r.status === 'SOLD',
+  }));
+}
+
+/**
+ * Record a purchase rate against many pieces at once.
+ *
+ * Backfilling a catalogue one form at a time is not something a shop with 400
+ * pieces will ever finish, so the profit report offers this: pick a purity,
+ * give the rate that was being paid around then, and every piece of that purity
+ * still missing a cost gets it.
+ *
+ * It is an estimate and the caller says so on screen. That is a deliberate
+ * trade: an approximate cost basis makes the metal-movement figure roughly
+ * right, where no basis at all leaves it blank forever. Only pieces with NO
+ * rate are touched, so a figure someone entered by hand is never overwritten.
+ */
+export function backfillIntakeRate(
+  db: DB,
+  userId: number,
+  purityId: number,
+  ratePaisaPerGram: number,
+): number {
+  if (ratePaisaPerGram <= 0) {
+    throw new Error('A purchase rate must be more than zero.');
+  }
+  return withAudit(db, userId, (ctx) => {
+    const run = db.transaction(() => {
+      const info = db
+        .prepare(
+          `INSERT INTO item_costs (item_id, intake_rate_paisa_per_gram, updated_by)
+           SELECT i.id, @rate, @user
+           FROM items i
+           LEFT JOIN item_costs ic ON ic.item_id = i.id
+           WHERE i.purity_id = @purity AND ic.item_id IS NULL
+           ON CONFLICT(item_id) DO NOTHING`,
+        )
+        .run({ rate: ratePaisaPerGram, user: userId, purity: purityId });
+
+      // A piece can have an item_costs row with labour but a null rate, which
+      // the INSERT above skips. Fill those in the same pass.
+      const updated = db
+        .prepare(
+          `UPDATE item_costs
+           SET intake_rate_paisa_per_gram = @rate,
+               updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+               updated_by = @user
+           WHERE intake_rate_paisa_per_gram IS NULL
+             AND item_id IN (SELECT id FROM items WHERE purity_id = @purity)`,
+        )
+        .run({ rate: ratePaisaPerGram, user: userId, purity: purityId });
+
+      return Number(info.changes) + Number(updated.changes);
+    });
+
+    const changed = run();
+    ctx.record({
+      table: 'item_costs',
+      rowPk: 0,
+      action: 'UPDATE',
+      changes: { backfillPurityId: purityId, ratePaisaPerGram, pieces: changed },
+    });
+    return changed;
+  });
 }

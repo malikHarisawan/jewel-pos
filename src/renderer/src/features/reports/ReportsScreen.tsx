@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useQuery } from '@tanstack/react-query';
-import { Spin } from 'antd';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { App as AntApp, Select, Spin } from 'antd';
 import { api } from '../../lib/api.js';
 import { Screen } from '../../app/AppShell.js';
 import { useSession } from '../../app/session.js';
-import { rs0, rs, gu, amount } from '../../lib/format.js';
+import { rs0, rs, gu, amount, parseRs } from '../../lib/format.js';
 
 /**
  * The two questions a notebook cannot answer.
@@ -148,23 +148,7 @@ export function ReportsScreen() {
                   <Tile label="Sold" value={rs0(p.revenuePaisa)} hint="total billed" />
                 </div>
 
-                {p.invoicesMissingCost > 0 && (
-                  <div
-                    style={{
-                      background: 'var(--color-surface)',
-                      borderRadius: 16,
-                      padding: '11px 14px',
-                      fontSize: 12.5,
-                      lineHeight: 1.5,
-                      marginBottom: 14,
-                      opacity: 0.85,
-                    }}
-                  >
-                    {p.invoicesMissingCost} of these {p.invoiceCount} bills have no recorded intake
-                    rate, so the gold’s movement on them is unknown and is left out rather than
-                    guessed. Add a purchase rate on those pieces to complete the figure.
-                  </div>
-                )}
+                {p.invoicesMissingCost > 0 && <FixCostPanel invoiceCount={p.invoiceCount} missing={p.invoicesMissingCost} />}
 
                 <div style={{ overflowX: 'auto' }}>
                   <table className="table jp-num">
@@ -316,6 +300,145 @@ export function ReportsScreen() {
         </section>
       </div>
     </Screen>
+  );
+}
+
+
+/**
+ * The fix for "gold movement unknown", offered where the problem is stated.
+ *
+ * Every shop that imported a catalogue starts with no purchase rates at all, so
+ * the profit report's headline feature is blank on day one. Naming the problem
+ * and leaving the owner to edit four hundred items one at a time is the same as
+ * not offering the feature — nobody finishes that. One rate per purity is an
+ * estimate, and the panel says so, but an approximate cost basis makes the
+ * figure roughly right where no basis leaves it blank forever.
+ */
+function FixCostPanel({ invoiceCount, missing }: { invoiceCount: number; missing: number }) {
+  const qc = useQueryClient();
+  const { message } = AntApp.useApp();
+  const [open, setOpen] = useState(false);
+  const [purityId, setPurityId] = useState<number | undefined>();
+  const [rate, setRate] = useState('');
+
+  const gaps = useQuery({
+    queryKey: ['reports', 'missingCost'],
+    queryFn: () => api['reports.missingCost']({ limit: 500 }),
+    enabled: open,
+  });
+
+  /* Group by purity: the owner backfills a purity at a time, and seeing "312
+     pieces" beside 22K is what makes the scale of the gap concrete. */
+  const byPurity = useMemo(() => {
+    const m = new Map<number, { purityId: number; label: string; count: number }>();
+    for (const r of gaps.data ?? []) {
+      const cur = m.get(r.purityId);
+      if (cur) cur.count++;
+      else m.set(r.purityId, { purityId: r.purityId, label: r.purityLabel, count: 1 });
+    }
+    return [...m.values()].sort((a, b) => b.count - a.count);
+  }, [gaps.data]);
+
+  const backfill = useMutation({
+    mutationFn: () =>
+      api['reports.backfillIntakeRate']({
+        purityId: purityId!,
+        ratePaisaPerGram: parseRs(rate),
+      }),
+    onSuccess: (res) => {
+      void qc.invalidateQueries({ queryKey: ['reports'] });
+      void qc.invalidateQueries({ queryKey: ['items'] });
+      message.success(
+        `Purchase rate recorded on ${res.pieces} ${res.pieces === 1 ? 'piece' : 'pieces'}.`,
+      );
+      setRate('');
+      setPurityId(undefined);
+    },
+    onError: (e: Error) => message.error(e.message),
+  });
+
+  const selected = byPurity.find((b) => b.purityId === purityId);
+
+  return (
+    <div
+      style={{
+        background: 'var(--color-surface)',
+        borderRadius: 16,
+        padding: '13px 15px',
+        fontSize: 12.5,
+        lineHeight: 1.5,
+        marginBottom: 14,
+      }}
+    >
+      <div style={{ marginBottom: open ? 12 : 0 }}>
+        {missing} of these {invoiceCount} bills have no purchase rate on the piece sold, so what the
+        gold did is unknown and is left out rather than guessed.{' '}
+        {!open && (
+          <button
+            className="btn btn-ghost"
+            style={{ padding: '2px 8px', fontSize: 12.5 }}
+            onClick={() => setOpen(true)}
+          >
+            Fix this
+          </button>
+        )}
+      </div>
+
+      {open && (
+        <>
+          <div style={{ opacity: 0.7, marginBottom: 10 }}>
+            Give the rate you were paying around the time you bought this stock. It is an estimate —
+            an approximate cost makes the gold figure roughly right, where none leaves it blank. A
+            rate you typed on an item by hand is never overwritten.
+          </div>
+
+          {gaps.isLoading && <Spin size="small" />}
+
+          {byPurity.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <Select
+                placeholder="Which purity?"
+                style={{ minWidth: 220 }}
+                value={purityId}
+                onChange={setPurityId}
+                options={byPurity.map((b) => ({
+                  value: b.purityId,
+                  label: `${b.label} — ${b.count} ${b.count === 1 ? 'piece' : 'pieces'}`,
+                }))}
+              />
+              <input
+                className="input jp-num"
+                style={{ width: 170 }}
+                value={rate}
+                onChange={(e) => setRate(e.target.value)}
+                placeholder="Rate paid per gram"
+              />
+              <button
+                className="btn btn-primary"
+                disabled={backfill.isPending || !purityId || !parseRs(rate)}
+                onClick={() => backfill.mutate()}
+              >
+                {backfill.isPending
+                  ? 'Saving…'
+                  : selected
+                    ? `Apply to ${selected.count}`
+                    : 'Apply'}
+              </button>
+              <button className="btn" onClick={() => setOpen(false)}>
+                Close
+              </button>
+            </div>
+          )}
+
+          {!gaps.isLoading && byPurity.length === 0 && (
+            <div style={{ opacity: 0.6 }}>
+              Every piece still in the catalogue has a purchase rate. The bills above were sold
+              before one was recorded.
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 

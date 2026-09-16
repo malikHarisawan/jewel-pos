@@ -194,6 +194,9 @@ export interface PreparedRow {
   locationId: number;
   notes: string | null;
   openingPieces: number;
+  /** What the shop paid per gram. Null when the sheet did not say. */
+  intakeRatePaisaPerGram: number | null;
+  labourPaidPaisa: number;
 }
 
 export interface RowResult {
@@ -437,6 +440,27 @@ function prepareRow(
     else hallmarkChargePaisa = p.value;
   }
 
+  /* Purchase cost. Optional everywhere: a sheet that does not carry it imports
+     fine and the profit report says the metal movement is unknown for those
+     pieces, which is the honest answer. A zero is treated as "not supplied"
+     rather than "bought free" — the latter would report the whole sale price
+     as profit. */
+  const intakeRateRaw = cell('intakeRate');
+  let intakeRatePaisaPerGram: number | null = null;
+  if (intakeRateRaw !== '') {
+    const p = parseMoneyPaisa(intakeRateRaw);
+    if (!p.ok) errors.push(`purchase rate: ${p.error}`);
+    else if (p.value > 0) intakeRatePaisaPerGram = p.value;
+  }
+
+  const labourPaidRaw = cell('labourPaid');
+  let labourPaidPaisa = 0;
+  if (labourPaidRaw !== '') {
+    const p = parseMoneyPaisa(labourPaidRaw);
+    if (!p.ok) errors.push(`labour paid: ${p.error}`);
+    else labourPaidPaisa = p.value;
+  }
+
   const piecesRaw = cell('pieces');
   let pieces = 1;
   if (piecesRaw !== '') {
@@ -525,6 +549,8 @@ function prepareRow(
       locationId,
       notes: cell('notes') === '' ? null : cell('notes'),
       openingPieces: pieces,
+      intakeRatePaisaPerGram,
+      labourPaidPaisa,
     },
   };
 }
@@ -699,6 +725,11 @@ export function commitItemImport(
          @hallmark_charge_paisa, 'IN_STOCK', @location_id, @notes, @created_by)`,
     );
 
+    const insertCost = db.prepare(
+      `INSERT INTO item_costs (item_id, intake_rate_paisa_per_gram, labour_paid_paisa, updated_by)
+       VALUES (@item_id, @intake, @labour, @user)`,
+    );
+
     let imported = 0;
     let openingMovements = 0;
 
@@ -732,6 +763,18 @@ export function commitItemImport(
       });
       const id = Number(info.lastInsertRowid);
       imported++;
+
+      /* Only write a cost row when the sheet actually carried one. An empty
+         item_costs row is worse than none: the profit report reads a zero
+         intake rate as "bought free" and reports the whole sale as margin. */
+      if (p.intakeRatePaisaPerGram != null || p.labourPaidPaisa > 0) {
+        insertCost.run({
+          item_id: id,
+          intake: p.intakeRatePaisaPerGram,
+          labour: p.labourPaidPaisa,
+          user: userId,
+        });
+      }
 
       if (opts.postOpeningStock && p.openingPieces > 0) {
         // ITEM mode moves exactly one piece (the schema trigger enforces it);

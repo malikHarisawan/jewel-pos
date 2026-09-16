@@ -172,6 +172,25 @@ export const ITEM_FIELDS: readonly FieldDef[] = [
     aliases: ['location', 'branch', 'counter', 'showcase', 'tray', 'shelf'],
   },
   {
+    key: 'intakeRate',
+    // What the shop PAID for the metal, not what it sells at. Without it the
+    // profit report cannot separate the shop's own margin from the metal's
+    // movement, so it reports that sale as incomplete rather than guessing.
+    label: 'Purchase rate (per gram)',
+    required: false,
+    aliases: [
+      'purchaserate', 'costrate', 'buyrate', 'buyingrate', 'intakerate',
+      'purchaseprice', 'costprice', 'costpergram', 'purchasepergram',
+      'kharidrate', 'kharid', 'rateperg', 'boughtat',
+    ],
+  },
+  {
+    key: 'labourPaid',
+    label: 'Labour paid',
+    required: false,
+    aliases: ['labourpaid', 'laborpaid', 'majooripaid', 'mazdooripaid', 'karigarpaid'],
+  },
+  {
     key: 'notes',
     label: 'Notes',
     required: false,

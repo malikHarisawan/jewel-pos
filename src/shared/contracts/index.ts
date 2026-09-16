@@ -484,6 +484,25 @@ export const DeadStockOutput = z.object({
   ),
 });
 
+export const MissingCostOutput = z.array(
+  z.object({
+    itemId: z.number().int(),
+    name: z.string(),
+    tagNumber: z.string().nullable(),
+    purityId: z.number().int(),
+    purityLabel: z.string(),
+    netMg: z.number().int(),
+    isSold: z.boolean(),
+  }),
+);
+
+/** Record one purchase rate against every piece of a purity still missing one. */
+export const BackfillIntakeInput = z.object({
+  purityId: z.number().int(),
+  ratePaisaPerGram: z.number().int().positive(),
+});
+export const BackfillIntakeOutput = z.object({ pieces: z.number().int() });
+
 // ---- first-run setup ------------------------------------------------------
 
 export const SetupStatusOutput = z.object({
@@ -1253,6 +1272,17 @@ export const contract = {
     input: DeadStockInput,
     output: DeadStockOutput,
     roles: ['OWNER', 'MANAGER'],
+  },
+  // Both concern the shop's buying price, so they sit with profit: owner-only.
+  'reports.missingCost': {
+    input: z.object({ limit: z.number().int().min(1).max(1000).default(500) }),
+    output: MissingCostOutput,
+    roles: ['OWNER'],
+  },
+  'reports.backfillIntakeRate': {
+    input: BackfillIntakeInput,
+    output: BackfillIntakeOutput,
+    roles: ['OWNER'],
   },
   'setup.status': { input: z.object({}), output: SetupStatusOutput },
   'setup.apply': { input: ApplySetupInput, output: SetupStatusOutput, roles: ['OWNER'] },

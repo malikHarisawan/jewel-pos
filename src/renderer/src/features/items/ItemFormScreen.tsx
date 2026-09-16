@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router';
 import { App as AntApp, Form, Input, InputNumber, Select, Spin } from 'antd';
 import { api } from '../../lib/api.js';
 import { useCatalog } from './useCatalog.js';
+import { useSession } from '../../app/session.js';
 import { Screen } from '../../app/AppShell.js';
 import { useStickyForm } from '../../lib/useStickyForm.js';
 import { DraftBanner } from '../../lib/DraftBanner.js';
@@ -41,6 +42,10 @@ interface FormValues {
   locationId: number;
   notes?: string;
   openingPieces: number;
+  /** What the metal cost to bring in, per gram, in rupees. Owner-only. */
+  intakeRateRupees?: number | null;
+  labourPaidRupees?: number;
+  otherCostRupees?: number;
 }
 
 /** A rounded surface with a small uppercase title — the form's section unit. */
@@ -120,6 +125,12 @@ function prefillFrom(d: Awaited<ReturnType<Api['items.get']>>): FormValues {
     locationId: d.locationId,
     notes: d.notes ?? undefined,
     openingPieces: 0,
+    intakeRateRupees:
+      d.cost?.intakeRatePaisaPerGram != null
+        ? paisaToRupees(d.cost.intakeRatePaisaPerGram)
+        : undefined,
+    labourPaidRupees: d.cost ? paisaToRupees(d.cost.labourPaidPaisa) : undefined,
+    otherCostRupees: d.cost ? paisaToRupees(d.cost.otherCostPaisa) : undefined,
   };
 }
 
@@ -173,6 +184,11 @@ export function ItemFormScreen() {
 
   const rate = (rates.data ?? []).find((r) => r.purityId === purityId);
   const purityLabel = catalog.data?.purities.find((p) => p.id === purityId)?.label ?? '';
+  /* Cost is the shop's buying price, so it mirrors the redaction already in
+     items.get: a salesman's ItemDTO simply has no cost block. */
+  const { session } = useSession();
+  const isOwner = session?.role === 'OWNER';
+  const todayRatePerGram = rate?.ratePaisaPerGram ?? null;
 
   /* Price preview. Runs the same pure engine the server prices with, so what
      the form shows is what the invoice will bill. Tax is deliberately left out
@@ -233,6 +249,18 @@ export function ItemFormScreen() {
         hallmarkChargePaisa: rupeesToPaisa(v.hallmarkChargeRupees || 0),
         locationId: v.locationId,
         notes: v.notes,
+        /* Only sent when the owner actually filled something in. An empty
+           intake rate stays null rather than becoming zero: "bought at Rs 0/g"
+           would report the entire sale price as profit, which is worse than
+           the report honestly saying the cost is unknown. */
+        cost: {
+          intakeRatePaisaPerGram:
+            v.intakeRateRupees == null || v.intakeRateRupees === 0
+              ? null
+              : rupeesToPaisa(v.intakeRateRupees),
+          labourPaidPaisa: rupeesToPaisa(v.labourPaidRupees || 0),
+          otherCostPaisa: rupeesToPaisa(v.otherCostRupees || 0),
+        },
       };
 
       if (isEdit) {
@@ -530,6 +558,46 @@ export function ItemFormScreen() {
                 </div>
               </div>
             </Section>
+
+            {/* What the piece cost to bring in.
+                Without an intake rate the profit report cannot tell what the
+                metal did between purchase and sale — the one figure a jeweller
+                cannot work out in their head — so it reports that invoice as
+                incomplete rather than guessing. Owner-only, because it is the
+                shop's buying price. */}
+            {isOwner && (
+              <Section
+                title="What it cost you"
+                hint="Only the owner sees this. It is what makes the profit report work."
+              >
+                <div style={grid('1fr 1fr 1fr')}>
+                  <Form.Item
+                    name="intakeRateRupees"
+                    label="Metal rate paid (Rs/g)"
+                    tooltip="The gold rate on the day you bought this piece. Leave empty if you do not know it."
+                  >
+                    <InputNumber className="jp-num" min={0} step={100} style={{ width: '100%' }} />
+                  </Form.Item>
+                  <Form.Item name="labourPaidRupees" label="Labour paid (Rs)">
+                    <InputNumber className="jp-num" min={0} step={100} style={{ width: '100%' }} />
+                  </Form.Item>
+                  <Form.Item name="otherCostRupees" label="Other cost (Rs)">
+                    <InputNumber className="jp-num" min={0} step={100} style={{ width: '100%' }} />
+                  </Form.Item>
+                </div>
+                <div style={{ fontSize: 11.5, opacity: 0.6, lineHeight: 1.5 }}>
+                  {todayRatePerGram != null ? (
+                    <>
+                      Today’s {purityLabel || 'rate'} is{' '}
+                      <strong>Rs {amount(todayRatePerGram)}/g</strong>. If you bought this piece
+                      recently, the rate you paid was near that.
+                    </>
+                  ) : (
+                    'Leave the rate empty if you do not know it — the profit report will say so rather than guess.'
+                  )}
+                </div>
+              </Section>
+            )}
 
             {!isEdit && (
               <Section
