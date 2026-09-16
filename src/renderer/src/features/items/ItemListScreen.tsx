@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
@@ -10,6 +10,7 @@ import { useSession } from '../../app/session.js';
 import { Screen } from '../../app/AppShell.js';
 import { rs, trio, gu } from '../../lib/format.js';
 import type { ItemDTOType } from '../../../../shared/contracts/index.js';
+import { LabelSheet } from './LabelSheet.js';
 
 const STATUS_CLS: Record<string, string> = {
   IN_STOCK: 'tag tag-accent-2',
@@ -28,6 +29,8 @@ export function ItemListScreen() {
   const { session } = useSession();
   const isOwner = session?.role === 'OWNER';
   const [search, setSearch] = useStickyState('items.search', '');
+  const [labelsOpen, setLabelsOpen] = useState(false);
+  const settings = useQuery({ queryKey: ['settings'], queryFn: () => api['settings.get']({}) });
 
   const items = useQuery({
     queryKey: ['items', 'list', search],
@@ -75,13 +78,37 @@ export function ItemListScreen() {
             placeholder={t('items.searchPh')}
             style={{ width: 260 }}
           />
+          <button className="btn" onClick={() => setLabelsOpen(true)} disabled={rows.length === 0}>
+            {t('items.printLabels', 'Print labels')}
+          </button>
           <button className="btn btn-primary" onClick={() => navigate('/items/new')}>
             {t('items.add')}
           </button>
         </>
       }
     >
-      <div style={{ background: 'var(--color-surface)', borderRadius: 24, padding: '8px 18px 14px' }}>
+      {labelsOpen && (
+        <LabelSheet
+          shopName={settings.data?.shop_name ?? ''}
+          onClose={() => setLabelsOpen(false)}
+          items={rows.map((r: ItemDTOType) => ({
+            id: r.id,
+            name: r.name,
+            tagNumber: r.tagNumber ?? null,
+            netMg: r.netMg,
+            purityLabel: names.purity.get(r.purityId),
+          }))}
+        />
+      )}
+
+      <div
+        style={{
+          background: 'var(--color-surface)',
+          borderRadius: 24,
+          padding: '8px 18px 14px',
+          display: labelsOpen ? 'none' : undefined,
+        }}
+      >
         <div style={{ overflowX: 'auto' }}>
           <table className="table jp-num">
             <thead>
