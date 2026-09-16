@@ -20,6 +20,24 @@ const SETTING_DEFAULTS = {
   // Off by default: software must never add itself to a machine's startup
   // without being asked. The shop turns this on from Settings.
   launch_at_startup: '0',
+  // ---- morning rate card --------------------------------------------------
+  // Where the suggested rate comes from. 'OFF' keeps the app fully offline and
+  // is the default: a shop that never opens Settings never makes a network
+  // call. A suggestion is only ever a suggestion — see rateSuggestion.ts.
+  rate_source: 'OFF',
+  rate_source_api_key: '',
+  // Flag a posted rate that moves more than this from the last one. 500bp = 5%.
+  // An extra typed zero is a 900% jump, which this catches before it prices.
+  rate_jump_warn_bp: '500',
+  // Post 24K and let the other gold purities follow by fineness ratio.
+  rate_derive_purities: '1',
+  // Set once the first-run wizard has been completed, so it never reappears.
+  setup_completed: '0',
+  // ---- off-site backup ----------------------------------------------------
+  // A second folder every verified backup is copied to: a USB stick, or a
+  // folder a cloud client syncs. Empty means off, which is the default —
+  // nothing leaves the PC unless the shop asks for it.
+  backup_offsite_dir: '',
 } as const;
 
 export type SettingKey = keyof typeof SETTING_DEFAULTS;

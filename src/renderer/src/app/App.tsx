@@ -17,6 +17,9 @@ import { SalesScreen } from '../features/sales/SalesScreen.js';
 import { CreditScreen } from '../features/credit/CreditScreen.js';
 import { KarigarScreen } from '../features/karigar/KarigarScreen.js';
 import { SettingsScreen } from '../features/settings/SettingsScreen.js';
+import { ReportsScreen } from '../features/reports/ReportsScreen.js';
+import { MorningRateCard } from '../features/rates/MorningRateCard.js';
+import { SetupWizard } from '../features/setup/SetupWizard.js';
 import { LicenseGate } from '../features/license/LicenseGate.js';
 import { isRtl } from '../i18n/index.js';
 import {
@@ -44,8 +47,13 @@ function Gate() {
   // it is replaced — otherwise a shipped machine keeps the published password.
   if (session.mustChangePin) return <ForceChangePinScreen />;
   return (
-    <Routes>
-      <Route element={<AppShell />}>
+    <>
+      {/* Both decide for themselves whether to open: the wizard only on a fresh
+          shop, the rate card only when today's rate is genuinely due. */}
+      <SetupWizard />
+      <MorningRateCard />
+      <Routes>
+        <Route element={<AppShell />}>
         <Route index element={<Dashboard />} />
         <Route path="items" element={<ItemListScreen />} />
         <Route path="items/new" element={<ItemFormScreen />} />
@@ -56,10 +64,12 @@ function Gate() {
         <Route path="sales" element={<SalesScreen />} />
         <Route path="credit" element={<CreditScreen />} />
         <Route path="karigar" element={<KarigarScreen />} />
+        <Route path="reports" element={<ReportsScreen />} />
         <Route path="settings" element={<SettingsScreen />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Route>
-    </Routes>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+    </>
   );
 }
 

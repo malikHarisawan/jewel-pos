@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App as AntApp, Form, Input, InputNumber, Select, Spin, Switch } from 'antd';
@@ -37,6 +37,7 @@ export function SettingsScreen() {
         <ShopPanel canManage={canManage} />
         <DesktopPanel canManage={canManage} />
         <SalePanel canManage={canManage} />
+        {isOwner && <RatesPanel />}
         {isOwner && <DiscountPanel />}
         <ChangePinPanel />
         {isOwner && <BackupPanel />}
@@ -133,6 +134,104 @@ function Panel({
       {hint && <div style={{ fontSize: 11.5, opacity: 0.6, marginTop: 4 }}>{hint}</div>}
       <div style={{ marginTop: 12 }}>{children}</div>
     </div>
+  );
+}
+
+
+/**
+ * Where a suggested morning rate comes from, and how hard the app pushes back
+ * on an odd figure.
+ *
+ * The suggestion is deliberately advisory. Pakistan's benchmark is the Sarafa
+ * Association bulletin, which no public API carries — they compute spot x
+ * USD/PKR and drift from it. So the app proposes and the owner disposes, and
+ * with the source Off the whole feature is inert and the app stays fully
+ * offline, which is the default.
+ */
+function RatesPanel() {
+  const { message } = AntApp.useApp();
+  const qc = useQueryClient();
+  const settings = useSettings();
+  const [form] = Form.useForm();
+
+  useEffect(() => {
+    if (settings.data) {
+      form.setFieldsValue({
+        rate_source: settings.data.rate_source || 'OFF',
+        rate_source_api_key: settings.data.rate_source_api_key || '',
+        rate_jump_warn_pct: String(Number(settings.data.rate_jump_warn_bp || '500') / 100),
+        rate_derive_purities: settings.data.rate_derive_purities !== '0',
+      });
+    }
+  }, [settings.data, form]);
+
+  const save = useMutation({
+    mutationFn: (v: {
+      rate_source: 'OFF' | 'GOLDPRICEZ' | 'RAPIDAPI_PK';
+      rate_source_api_key: string;
+      rate_jump_warn_pct: string;
+      rate_derive_purities: boolean;
+    }) =>
+      api['settings.update']({
+        rate_source: v.rate_source,
+        rate_source_api_key: v.rate_source_api_key ?? '',
+        rate_jump_warn_bp: String(Math.round((Number(v.rate_jump_warn_pct) || 5) * 100)),
+        rate_derive_purities: v.rate_derive_purities ? '1' : '0',
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['settings'] });
+      void qc.invalidateQueries({ queryKey: ['rates'] });
+      message.success('Saved');
+    },
+    onError: (e: Error) => message.error(e.message),
+  });
+
+  return (
+    <Panel
+      title="Rates"
+      hint="A suggested rate is only ever a suggestion — you confirm it before anything is posted."
+    >
+      <Form layout="vertical" form={form} onFinish={(v) => save.mutate(v)}>
+        <Form.Item
+          name="rate_source"
+          label="Suggested rate source"
+          extra="Off keeps the app completely offline."
+        >
+          <Select
+            options={[
+              { value: 'OFF', label: 'Off — I type the rate myself' },
+              { value: 'GOLDPRICEZ', label: 'goldpricez.com' },
+              { value: 'RAPIDAPI_PK', label: 'RapidAPI — Pakistan gold' },
+            ]}
+          />
+        </Form.Item>
+        <Form.Item
+          name="rate_source_api_key"
+          label="API key"
+          extra="Needed by both sources. Stored on this PC only."
+        >
+          <Input.Password autoComplete="off" />
+        </Form.Item>
+        <Form.Item
+          name="rate_derive_purities"
+          label="Fill other gold purities automatically"
+          valuePropName="checked"
+          extra="Post 24K and let 22K, 21K and 18K follow by fineness."
+        >
+          <Switch />
+        </Form.Item>
+        <Form.Item
+          name="rate_jump_warn_pct"
+          label="Warn if the rate moves more than (%)"
+          extra="Catches a mistyped figure before it prices a sale."
+        >
+          <Input className="jp-num" />
+        </Form.Item>
+        <button className="btn btn-primary" type="submit" disabled={save.isPending}>
+          Save
+        </button>
+      </Form>
+    </Panel>
   );
 }
 
@@ -404,6 +503,33 @@ function BackupPanel() {
     queryKey: ['backups'],
     queryFn: () => api['backup.list']({}),
   });
+  const settings = useSettings();
+  const [offsiteDir, setOffsiteDir] = useState('');
+  // Mirror the stored value once it arrives, without clobbering an in-progress
+  // edit — a settings refetch mid-typing must not reset the field.
+  useEffect(() => {
+    if (settings.data) setOffsiteDir((cur) => (cur === '' ? settings.data.backup_offsite_dir : cur));
+  }, [settings.data]);
+
+  const saveOffsite = useMutation({
+    mutationFn: (dir: string) => api['settings.update']({ backup_offsite_dir: dir }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['settings'] });
+      message.success('Saved');
+    },
+    onError: (e: Error) => message.error(e.message),
+  });
+
+  const copyOffsite = useMutation({
+    mutationFn: () => api['backup.offsiteNow']({}),
+    onSuccess: (res) => {
+      // An unplugged USB stick is the normal case, not an exception, so the
+      // reason is shown plainly rather than as a crash.
+      if (res.ok) message.success('Copied off-site.');
+      else message.warning(res.reason ?? 'Could not copy off-site.');
+    },
+    onError: (e: Error) => message.error(e.message),
+  });
 
   const takeNow = useMutation({
     mutationFn: () => api['backup.now']({}),
@@ -443,6 +569,48 @@ function BackupPanel() {
         >
           {takeNow.isPending ? <Spin size="small" /> : t('backup.takeNow')}
         </button>
+      </div>
+
+      {/* A shop's whole book living on one PC in one shop is the real risk.
+          A USB stick or a synced cloud folder is the cheapest way out of it. */}
+      <div
+        style={{
+          background: 'var(--color-bg)',
+          borderRadius: 16,
+          padding: '12px 14px',
+          marginBottom: 14,
+        }}
+      >
+        <div className="jp-kicker" style={{ marginBottom: 6 }}>
+          Second copy
+        </div>
+        <div style={{ fontSize: 11.5, opacity: 0.65, marginBottom: 8, lineHeight: 1.5 }}>
+          Every verified backup is also copied here. Use a USB stick, or a folder your cloud drive
+          syncs. Leave empty to keep backups on this PC only.
+        </div>
+        <input
+          className="input"
+          value={offsiteDir}
+          onChange={(e) => setOffsiteDir(e.target.value)}
+          placeholder="E:\jewel-pos-backups"
+          style={{ marginBottom: 8 }}
+        />
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            className="btn btn-secondary"
+            onClick={() => saveOffsite.mutate(offsiteDir.trim())}
+            disabled={saveOffsite.isPending}
+          >
+            Save folder
+          </button>
+          <button
+            className="btn"
+            onClick={() => copyOffsite.mutate()}
+            disabled={copyOffsite.isPending || !settings.data?.backup_offsite_dir}
+          >
+            {copyOffsite.isPending ? <Spin size="small" /> : 'Copy latest now'}
+          </button>
+        </div>
       </div>
 
       {backups.isLoading ? (

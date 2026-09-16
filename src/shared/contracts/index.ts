@@ -353,6 +353,153 @@ export const RateHistoryInput = z.object({
 });
 export const RateHistoryOutput = z.array(RateDTO);
 
+// ---- morning rate card ----------------------------------------------------
+
+/** One purity as the morning card sees it. */
+export const MorningPurityDTO = z.object({
+  purityId: z.number().int(),
+  label: z.string(),
+  metalId: z.number().int(),
+  metalName: z.string(),
+  finenessMillesimal: z.number().int(),
+  lastRatePaisaPerGram: z.number().int().nullable(),
+  lastEffectiveAt: z.string().nullable(),
+  isStale: z.boolean(),
+});
+
+export const MorningBoardInput = z.object({
+  /** Renderer's UTC offset in minutes, so "today" is the till's today. */
+  tzOffsetMinutes: z.number().int().min(-900).max(900).default(0),
+});
+
+export const MorningBoardOutput = z.object({
+  purities: z.array(MorningPurityDTO),
+  basisPurityId: z.number().int().nullable(),
+  derivePurities: z.boolean(),
+  jumpWarnBp: z.number().int(),
+  needsPosting: z.boolean(),
+});
+
+/** A rate the online source proposes. Never posted without confirmation. */
+export const RateSuggestionOutput = z.object({
+  suggestion: z
+    .object({
+      ratePaisaPerGram: z.number().int(),
+      sourceId: z.enum(['OFF', 'GOLDPRICEZ', 'RAPIDAPI_PK']),
+      sourceLabel: z.string(),
+      fetchedAt: z.string(),
+    })
+    .nullable(),
+  unavailableReason: z
+    .enum(['NOT_CONFIGURED', 'NO_API_KEY', 'OFFLINE', 'BAD_RESPONSE', 'TIMEOUT'])
+    .nullable(),
+});
+
+export const PreviewDerivedInput = z.object({
+  basisPurityId: z.number().int(),
+  enteredValuePaisa: z.number().int().positive(),
+  enteredBasis: RateBasisSchema,
+});
+
+export const PreviewDerivedOutput = z.array(
+  z.object({
+    purityId: z.number().int(),
+    label: z.string(),
+    finenessMillesimal: z.number().int(),
+    ratePaisaPerGram: z.number().int(),
+    isBasis: z.boolean(),
+    deltaBp: z.number().int(),
+    lastRatePaisaPerGram: z.number().int().nullable(),
+  }),
+);
+
+export const PostRatesInput = z.object({
+  lines: z
+    .array(
+      z.object({
+        purityId: z.number().int(),
+        enteredValuePaisa: z.number().int().positive(),
+        enteredBasis: RateBasisSchema,
+      }),
+    )
+    .min(1)
+    .max(50),
+});
+export const PostRatesOutput = z.array(RateDTO);
+
+// ---- reports --------------------------------------------------------------
+
+export const ProfitReportInput = z.object({
+  fromDate: z.string(),
+  toDate: z.string(),
+});
+
+export const ProfitRowDTO = z.object({
+  invoiceId: z.number().int(),
+  docNumber: z.string().nullable(),
+  docDate: z.string(),
+  partyName: z.string().nullable(),
+  grandTotalPaisa: z.number().int(),
+  earnedPaisa: z.number().int(),
+  metalGainPaisa: z.number().int().nullable(),
+  totalProfitPaisa: z.number().int().nullable(),
+  isPartial: z.boolean(),
+});
+
+export const ProfitReportOutput = z.object({
+  fromDate: z.string(),
+  toDate: z.string(),
+  invoiceCount: z.number().int(),
+  revenuePaisa: z.number().int(),
+  earnedPaisa: z.number().int(),
+  metalGainPaisa: z.number().int(),
+  discountPaisa: z.number().int(),
+  totalProfitPaisa: z.number().int(),
+  invoicesMissingCost: z.number().int(),
+  rows: z.array(ProfitRowDTO),
+});
+
+export const DeadStockInput = z.object({
+  thresholdDays: z.number().int().min(1).max(3650).default(180),
+  limit: z.number().int().min(1).max(500).default(200),
+});
+
+export const DeadStockOutput = z.object({
+  thresholdDays: z.number().int(),
+  itemCount: z.number().int(),
+  totalLockedPaisa: z.number().int(),
+  rows: z.array(
+    z.object({
+      itemId: z.number().int(),
+      name: z.string(),
+      tagNumber: z.string().nullable(),
+      productType: z.string(),
+      purityLabel: z.string(),
+      pieces: z.number().int(),
+      netMg: z.number().int(),
+      daysResting: z.number().int(),
+      lockedValuePaisa: z.number().int(),
+      lastMovementAt: z.string(),
+    }),
+  ),
+});
+
+// ---- first-run setup ------------------------------------------------------
+
+export const SetupStatusOutput = z.object({
+  completed: z.boolean(),
+  remaining: z.array(z.enum(['SHOP_DETAILS', 'PURITIES', 'RATE', 'STOCK'])),
+});
+
+export const ApplySetupInput = z.object({
+  shopName: z.string().min(1).max(120),
+  shopPhone: z.string().max(40).default(''),
+  shopAddress: z.string().max(300).default(''),
+  chargesTax: z.boolean(),
+  taxRateBp: z.number().int().min(0).max(10_000).default(0),
+  activePurityIds: z.array(z.number().int()).max(50).default([]),
+});
+
 // ---- price quote (live item pricing) --------------------------------------
 
 /** A computed price breakdown for one item at the current rate. */
@@ -840,6 +987,18 @@ export const SettingsDTO = z.object({
   close_to_tray: z.string(),
   /** '1' | '0' — launch with Windows. Off unless the shop opts in. */
   launch_at_startup: z.string(),
+  /** 'OFF' | 'GOLDPRICEZ' | 'RAPIDAPI_PK' — where a suggested rate comes from.
+   * A suggestion is never posted without the owner confirming it. */
+  rate_source: z.string(),
+  rate_source_api_key: z.string(),
+  /** Flag a posted rate moving more than this from the last. 500bp = 5%. */
+  rate_jump_warn_bp: z.string(),
+  /** '1' | '0' — post 24K and let the other gold purities follow by fineness. */
+  rate_derive_purities: z.string(),
+  /** '1' | '0' — set once the first-run wizard has been completed. */
+  setup_completed: z.string(),
+  /** Second folder every verified backup is copied to. Empty means off. */
+  backup_offsite_dir: z.string(),
 });
 export const UpdateSettingsInput = z.object({
   shop_name: z.string().optional(),
@@ -854,6 +1013,12 @@ export const UpdateSettingsInput = z.object({
   max_discount_pct_manager: z.string().optional(),
   close_to_tray: z.enum(['0', '1']).optional(),
   launch_at_startup: z.enum(['0', '1']).optional(),
+  rate_source: z.enum(['OFF', 'GOLDPRICEZ', 'RAPIDAPI_PK']).optional(),
+  rate_source_api_key: z.string().max(200).optional(),
+  rate_jump_warn_bp: z.string().optional(),
+  rate_derive_purities: z.enum(['0', '1']).optional(),
+  setup_completed: z.enum(['0', '1']).optional(),
+  backup_offsite_dir: z.string().max(400).optional(),
 });
 
 // ---- user management ------------------------------------------------------
@@ -977,6 +1142,24 @@ export const contract = {
   'rates.enter': { input: EnterRateInput, output: RateDTO, roles: ['OWNER', 'MANAGER'] },
   'rates.quoteItems': { input: QuoteItemsInput, output: QuoteItemsOutput },
   'rates.quoteWeight': { input: QuoteWeightInput, output: QuoteWeightOutput },
+  // The morning card. Read endpoints are open to any signed-in user so the POS
+  // can warn a salesman about a stale rate; posting stays Owner/Manager.
+  'rates.morningBoard': { input: MorningBoardInput, output: MorningBoardOutput },
+  'rates.suggestion': {
+    input: z.object({}),
+    output: RateSuggestionOutput,
+    roles: ['OWNER', 'MANAGER'],
+  },
+  'rates.previewDerived': {
+    input: PreviewDerivedInput,
+    output: PreviewDerivedOutput,
+    roles: ['OWNER', 'MANAGER'],
+  },
+  'rates.postMany': {
+    input: PostRatesInput,
+    output: PostRatesOutput,
+    roles: ['OWNER', 'MANAGER'],
+  },
   'sales.checkout': { input: CheckoutInput, output: CheckoutOutput, roles: ['OWNER', 'MANAGER', 'SALESMAN'] },
   'sales.getInvoice': { input: GetInvoiceInput, output: InvoiceDTO },
   // The register is a management view: a salesman rings sales up but does not
@@ -1009,6 +1192,16 @@ export const contract = {
   // and the app restarts afterwards rather than hot-swapping an open handle.
   'backup.list': { input: z.object({}), output: ListBackupsOutput, roles: ['OWNER'] },
   'backup.now': { input: z.object({}), output: BackupNowOutput, roles: ['OWNER'] },
+  /** Copy the newest verified backup to the configured off-site folder. */
+  'backup.offsiteNow': {
+    input: z.object({}),
+    output: z.object({
+      ok: z.boolean(),
+      path: z.string().nullable(),
+      reason: z.string().nullable(),
+    }),
+    roles: ['OWNER'],
+  },
   'backup.restore': {
     input: RestoreBackupInput,
     output: RestoreBackupOutput,
@@ -1054,6 +1247,15 @@ export const contract = {
   'license.status': { input: z.object({}), output: LicenseInfoDTO, public: true },
   'license.activate': { input: ActivateLicenseInput, output: LicenseInfoDTO, public: true },
   'dashboard.summary': { input: z.object({}), output: DashboardSummaryOutput },
+  // Profit exposes cost basis and margin — owner's business, not the counter's.
+  'reports.profit': { input: ProfitReportInput, output: ProfitReportOutput, roles: ['OWNER'] },
+  'reports.deadStock': {
+    input: DeadStockInput,
+    output: DeadStockOutput,
+    roles: ['OWNER', 'MANAGER'],
+  },
+  'setup.status': { input: z.object({}), output: SetupStatusOutput },
+  'setup.apply': { input: ApplySetupInput, output: SetupStatusOutput, roles: ['OWNER'] },
 } as const satisfies Record<string, EndpointDef>;
 
 export type Contract = typeof contract;

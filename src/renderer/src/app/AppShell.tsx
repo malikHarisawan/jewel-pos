@@ -91,6 +91,15 @@ const NAV: NavEntry[] = [
     roles: ['OWNER', 'MANAGER'],
   },
   {
+    key: 'reports',
+    path: '/reports',
+    labelKey: 'nav.reports',
+    // No F-key left: F1-F8 are taken and F9 finalises a sale. Reports is a
+    // read-and-think screen, not a counter reflex, so it loses nothing.
+    d: 'M3 3v16a2 2 0 0 0 2 2h16M7 16l4-6 4 3 5-7',
+    roles: ['OWNER', 'MANAGER'],
+  },
+  {
     key: 'settings',
     path: '/settings',
     labelKey: 'nav.settings',

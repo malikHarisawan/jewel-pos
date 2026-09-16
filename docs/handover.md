@@ -28,28 +28,40 @@ Windows 10 or 11, 64-bit. No internet needed — ever.
    read it knows yours until you change it.
 3. You are in. The app runs free for **7 days**.
 
-## Setting up your shop (about 10 minutes)
+## Setting up your shop (about 2 minutes)
 
-Do these in order. The app will not price anything until step 3 is done.
+The app opens with a **short setup card** asking four things: your shop name and
+phone, whether you charge tax, and which gold purities you deal in. Answer those
+and you are ready to sell.
 
-**1. Shop details** — *Settings (click it in the sidebar; it has no F-key, because F9 finalises a sale)*
-Shop name, address, phone. These print at the top of every bill.
-Also set **"Lock the counter after"** — the app returns to the sign-in screen
-after this many idle minutes. `10` is sensible. `0` turns it off.
+Everything else already arrives set the way a Pakistani jewellery shop normally
+wants it — gold exempt from tax (the FBR treatment), rounding to the nearest
+rupee, a tola of 11.664 g, the standard purities. All of it is editable later in
+*Settings*.
 
-**2. Tax and rounding** — *Settings*
-- Tax rate — set `0` if you do not charge it.
-- Tax base — **"Gold exempt"** is the FBR treatment (tax on making and stones
-  only, not on the metal).
-- Rounding — **"Nearest rupee"** is normal.
+> Pick only the purities you actually sell. Every one you keep is a rate you
+> would otherwise have to post each morning.
 
-**3. Today's rate** — *Rates (F4)*
-Enter the gold rate for each purity you deal in. You can type it **per tola**,
-**per gram**, or **per 10 grams** — whichever way your market quotes it.
+### Then, each morning
 
-> **Do this every morning.** Nothing can be priced or sold without a rate.
+A **rate card** appears when today's rate has not been posted yet. Type the 24K
+rate — or accept the suggested one — and the app fills in 22K, 21K and 18K for
+you by purity. One number, one tap, the whole board.
 
-**4. Your staff** — *Settings → Users*
+You can still post any purity by hand on *Rates (F4)* whenever you want.
+
+**Optional: a suggested rate from the internet.** In *Settings → Rates* you can
+turn on an online source. It only ever **suggests** — you confirm before
+anything is posted, because the number a website computes can differ from your
+sarafa bazaar rate. Leave it **Off** (the default) and the app stays completely
+offline, exactly as before.
+
+The app also queries a rate that jumps more than 5% from your last one, which
+catches a mistyped extra zero before it prices a sale.
+
+### The rest of your setup
+
+**Your staff** — *Settings → Users*
 Add your counter staff as **Salesman**. Give each one a starting PIN; the app
 forces them to pick their own the first time they sign in.
 
@@ -57,11 +69,11 @@ forces them to pick their own the first time they sign in.
 - **Manager** can do everything except manage users, discount limits, and backups.
 - **Owner** can do everything.
 
-**5. Discount limits** — *Settings*
+**Discount limits** — *Settings*
 How much each role may cut off a bill on their own. Default: salesman 5%,
 manager 20%. A sale beyond the limit is refused and needs you.
 
-**6. Your stock** — *Items (F2)*
+**Your stock** — *Items (F2)*
 Add each piece. Two kinds:
 - **Unique** — one tagged piece (a ring, a set). Sold whole.
 - **Lot** — bulk stock sold by weight (chain by the gram).
@@ -78,6 +90,7 @@ Add each piece. Two kinds:
 | **F6** | Sales | Every past bill |
 | **F7** | Udhaar | Who owes you money |
 | **F8** | Karigar | Goldsmith jobs |
+| — | Reports | What you actually made, and what is not selling |
 
 ### Making a sale
 1. **F5**.
@@ -100,6 +113,34 @@ up since, you do not lose; if it has gone down, they do not.
 Sales paid with **CREDIT** appear under **F7**. Click **Statement** to see a
 customer's history and record a payment when they settle up.
 
+### Printing tag labels
+*Items (F2)* → **Print labels**. Prints a sheet of stickers for everything in
+your current list, each with a scannable barcode of its tag number. Stick them
+on the pieces and the POS can scan them straight in.
+
+A piece with no tag number is skipped and the app tells you how many — add a tag
+on the item first.
+
+### Reports — what you actually made
+The **Reports** screen answers two things your books know but you cannot work
+out in your head:
+
+**What you actually made.** Your profit split into two parts:
+- **You earned** — making, wastage and stones. Your own work.
+- **The gold did** — what the metal itself gained or lost between the day you
+  bought the piece and the day you sold it.
+
+That second number is the one no notebook can give you. It needs the rate on the
+bill compared against the rate the piece came in at.
+
+> If a piece has no purchase rate recorded, the app says so and leaves that part
+> out rather than guessing. The heading reads **"Profit so far"** when some bills
+> are still missing their cost. Add a purchase rate on those pieces to complete
+> the picture.
+
+**Money asleep on the shelf.** Everything that has not moved in 90 days, 6 months
+or a year — most valuable first — and how much cash is tied up in it.
+
 ## Your data is safe
 
 Backups happen automatically:
@@ -112,6 +153,18 @@ To take one yourself or **put an old one back**: *Settings → Backups*
 undone.
 
 Your data lives in `%APPDATA%\jewel-pos\` and **survives uninstalling**.
+
+### Keep a second copy somewhere else
+Your whole book sits on this one PC. If it is stolen or the disk dies, the
+backups die with it.
+
+*Settings → Backups → Second copy*: put in a folder and every backup is copied
+there as well. Use a **USB stick** (leave it plugged in), or a folder your
+**Google Drive / Dropbox / OneDrive** syncs.
+
+The copy is checked like the original — a bad one is thrown away rather than
+kept. If the USB stick is unplugged the app simply says so; your normal backup
+still happened.
 
 ## Rules the app will not let you break
 
@@ -126,7 +179,15 @@ These are deliberate. They protect your books.
 
 ## If something goes wrong
 
-**"No rate set for purity…"** — Post today's rate on **F4**.
+**"Post today's 22K / 916 rate before selling it — press F4."** — Exactly that:
+the rate for that purity has not been posted. The morning card does this for you
+if you let it.
+
+**The POS shows an amber "Today's rate has not been posted" bar** — you are
+selling on yesterday's rate. Post today's on **F4**.
+
+**"That is 12.4% higher than the last posted rate"** — the app is double-checking
+before you post. If the figure is right, click **Post anyway**.
 
 **"Discount exceeds the X% limit"** — The cashier is discounting more than their
 role allows. An owner or manager must ring up that sale.
@@ -138,6 +199,11 @@ method.
 
 **Forgot the owner PIN** — Contact your supplier. There is no back door; that is
 the point.
+
+## Urdu
+
+*Settings → Appearance* switches the whole interface to Urdu, right-to-left.
+Every screen is translated.
 
 ## Licensing
 
@@ -158,7 +224,7 @@ The code only works on that one PC.
 
 ```
 npm ci
-npm run verify      # typecheck + lint + 288 tests
+npm run verify      # typecheck + lint + 352 tests
 npm run smoke       # drives the real app, walks every screen, writes screenshots
 npm run dist        # -> dist/Jewel POS Setup 1.1.0.exe
 ```
@@ -272,8 +338,26 @@ local database. That is inherent to offline software with no server. What
 matters commercially is that **nobody can forge a licence for a new machine**
 without your private key, and that property holds.
 
+## The rate suggestion source
+
+Off by default, so a shop that never opens Settings never makes a network call.
+
+Both supported sources (goldpricez, RapidAPI) need the shop's own API key, typed
+in *Settings → Rates*. There is no shared key in the build and nothing is sent
+anywhere except that one GET.
+
+`src/main/services/rateSuggestionService.ts` is deliberately defensive: a 6s
+timeout, a sanity band on the returned figure, and every failure — no key, no
+network, junk payload — collapses to "no suggestion" so the morning card still
+opens with yesterday's rate prefilled. **A suggestion is never posted without the
+owner confirming it**, which is the point: public APIs compute spot × USD/PKR and
+drift from the Sarafa Association bulletin the bazaar actually follows.
+
+To add a source, implement one fetch function and add it to the switch — the
+sanity check and the confirm-before-post flow are shared.
+
 ## Not in this release
 
-Urdu, thermal receipt printing, barcode labels, item photos, sales/profit
-reports, multi-branch, credit limits and ageing, LAN multi-till, off-site
-backup. See `docs/requirements.md` for the full list.
+Thermal receipt printing, item photos, photo/OCR stock intake, multi-branch,
+credit limits and ageing, LAN multi-till. See `docs/requirements.md` for the
+full list.

@@ -10,7 +10,19 @@ import {
   listMovements,
   listBalances,
 } from '../services/stockService.js';
-import { enterRate, latestRates, rateHistory, quoteItems, quoteWeight } from '../services/rateService.js';
+import {
+  enterRate,
+  latestRates,
+  rateHistory,
+  quoteItems,
+  quoteWeight,
+  morningBoard,
+  postRates,
+  previewDerivedRates,
+} from '../services/rateService.js';
+import { fetchRateSuggestion } from '../services/rateSuggestionService.js';
+import { profitReport, deadStockReport } from '../services/reportService.js';
+import { setupStatus, applySetup } from '../services/setupService.js';
 import {
   checkout,
   getInvoice,
@@ -22,11 +34,17 @@ import { getSettings, updateSettings } from '../services/settingsService.js';
 import { getSummary } from '../services/dashboardService.js';
 import { createParty, listParties } from '../services/partyService.js';
 import { listDebtors, getStatement, recordRepayment } from '../services/creditService.js';
-import { listBackups, backupNow, restoreBackup } from '../db/backup.js';
+import {
+  listBackups,
+  backupNow,
+  restoreBackup,
+  copyBackupOffsite,
+  rotateOffsite,
+} from '../db/backup.js';
 import { exportAllToCsv } from '../db/csvExport.js';
 import { analyseItemSheet, commitItemImport } from '../import/itemImport.js';
 import { ITEM_FIELDS } from '../import/columns.js';
-import { basename } from 'node:path';
+import { basename, join } from 'node:path';
 import {
   issueJob,
   receiveJob,
@@ -168,6 +186,15 @@ export const handlers: Handlers = {
   'rates.quoteItems': (ctx, input) => quoteItems(ctx.db, input),
   'rates.quoteWeight': (ctx, input) => quoteWeight(ctx.db, input.itemId, input.netMg),
 
+  'rates.morningBoard': (ctx, input) => morningBoard(ctx.db, input.tzOffsetMinutes),
+  'rates.suggestion': (ctx) => fetchRateSuggestion(ctx.db),
+  'rates.previewDerived': (ctx, input) =>
+    previewDerivedRates(ctx.db, input.basisPurityId, input.enteredValuePaisa, input.enteredBasis),
+  'rates.postMany': (ctx, input) => {
+    const session = ctx.auth.requireSession();
+    return postRates(ctx.db, session.userId, input.lines);
+  },
+
   'sales.checkout': (ctx, input) => {
     const session = ctx.auth.requireSession();
     return checkout(ctx.db, session.userId, {
@@ -216,7 +243,32 @@ export const handlers: Handlers = {
   'backup.now': async (ctx) => {
     const platform = requirePlatform(ctx);
     const res = await backupNow(ctx.db, platform.backupsDir, 'manual', new Date());
+    // Mirror off-site on the way out, when configured. A failure here (an
+    // unplugged USB stick, most often) must not turn a good local backup into
+    // a reported failure, so the result is deliberately ignored — the owner can
+    // see and retry it from Settings.
+    if (res.ok) {
+      const dir = getSettings(ctx.db).backup_offsite_dir;
+      if (dir.trim()) {
+        copyBackupOffsite(res.path, dir);
+        rotateOffsite(dir);
+      }
+    }
     return { name: basename(res.path), ok: res.ok };
+  },
+  'backup.offsiteNow': (ctx) => {
+    const platform = requirePlatform(ctx);
+    const dir = getSettings(ctx.db).backup_offsite_dir;
+    if (!dir.trim()) {
+      return { ok: false, path: null, reason: 'No off-site folder set.' };
+    }
+    const newest = listBackups(platform.backupsDir)[0];
+    if (!newest) {
+      return { ok: false, path: null, reason: 'There is no backup to copy yet.' };
+    }
+    const result = copyBackupOffsite(join(platform.backupsDir, newest.name), dir);
+    if (result.ok) rotateOffsite(dir);
+    return result;
   },
   'backup.restore': (ctx, input) => {
     const platform = requirePlatform(ctx);
@@ -355,4 +407,14 @@ export const handlers: Handlers = {
   'license.activate': (ctx, input) => ctx.license.activate(input.code),
 
   'dashboard.summary': (ctx) => getSummary(ctx.db),
+
+  'reports.profit': (ctx, input) => profitReport(ctx.db, input.fromDate, input.toDate),
+  'reports.deadStock': (ctx, input) =>
+    deadStockReport(ctx.db, input.thresholdDays, input.limit),
+
+  'setup.status': (ctx) => setupStatus(ctx.db),
+  'setup.apply': (ctx, input) => {
+    const session = ctx.auth.requireSession();
+    return applySetup(ctx.db, session.userId, input);
+  },
 };

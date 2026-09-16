@@ -60,7 +60,7 @@ Status of every requirement below is one of:
 | 3.7 | Search by name, tag or category | Done |
 | 3.8 | Live price column at today's rate (never stored as a price) | Done |
 | 3.9 | Photographs of pieces | Not in v1 |
-| 3.10 | Printing barcode/tag labels | Not in v1 |
+| 3.10 | Printing barcode/tag labels | Done |
 
 ---
 
@@ -90,6 +90,11 @@ Status of every requirement below is one of:
 | 5.4 | Rate history is append-only; a mistake is corrected by posting again | Done |
 | 5.5 | Tola is configurable per shop (default 11.664 g) | Done |
 | 5.6 | Every invoice locks the rate it was priced at, permanently | Done |
+| 5.7 | A morning card prompts for today's rate when it has not been posted | Done |
+| 5.8 | Post 24K and the other gold purities follow by fineness ratio | Done |
+| 5.9 | An optional online source *suggests* a rate; the owner always confirms | Done |
+| 5.10 | A rate moving more than a set % from the last one is queried before posting | Done |
+| 5.11 | The POS warns when it is selling on a rate posted before today | Done |
 
 ---
 
@@ -182,6 +187,32 @@ Status of every requirement below is one of:
 
 ---
 
+## 11a. Setup
+
+| # | Requirement | Status |
+|---|---|---|
+| 11a.1 | A fresh install ships with the settings a Pakistani shop usually wants | Done |
+| 11a.2 | A four-question wizard on first run: shop, tax, purities, done | Done |
+| 11a.3 | The wizard never interrupts a shop that already has stock or sales | Done |
+| 11a.4 | Unused gold purities are switched off, so they need no morning rate | Done |
+
+## 11b. Reports
+
+| # | Requirement | Status |
+|---|---|---|
+| 11b.1 | Profit split into what was earned and what the metal did | Done |
+| 11b.2 | A piece with no recorded intake rate is reported as unknown, never guessed | Done |
+| 11b.3 | The headline shows the profit that IS known rather than zero | Done |
+| 11b.4 | Dead stock past a chosen age, most valuable first, with cash locked up | Done |
+| 11b.5 | Profit is owner-only; dead stock is owner/manager | Done |
+
+## 11c. Labels
+
+| # | Requirement | Status |
+|---|---|---|
+| 11c.1 | Code 128 tag labels printed as an A4 sticker sheet | Done |
+| 11c.2 | A piece with no tag number is reported, never printed blank | Done |
+
 ## 12. Data safety
 
 | # | Requirement | Status |
@@ -195,7 +226,9 @@ Status of every requirement below is one of:
 | 12.7 | Restoring snapshots the current data first, so it is undoable | Done |
 | 12.8 | Tamper-evident audit trail (hash-chained) of every change | Done |
 | 12.9 | Data lives in %APPDATA% and survives uninstall/reinstall | Done |
-| 12.10 | Automatic copy to a USB drive or cloud | Not in v1 |
+| 12.10 | Every verified backup is also copied to a USB drive or synced folder | Done |
+| 12.11 | The off-site copy is verified too, and a corrupt one is discarded | Done |
+| 12.12 | A missing USB drive is reported, never fatal to the local backup | Done |
 
 ---
 
@@ -219,7 +252,7 @@ Status of every requirement below is one of:
 | 14.2 | Fully offline; no internet needed at any point | Done |
 | 14.3 | One installation per PC (a second launch focuses the first) | Done |
 | 14.4 | English interface | Done |
-| 14.5 | Urdu interface | Not in v1 (the app is built for it; only the translation file is missing) |
+| 14.5 | Urdu interface | Done |
 | 14.6 | Multiple tills sharing one database over a LAN | Not in v1 (the architecture is prepared for it) |
 
 ---
@@ -228,12 +261,9 @@ Status of every requirement below is one of:
 
 Everything below is deliberately excluded from this release:
 
-- Urdu translation
 - Thermal (ESC/POS) receipt printing
-- Barcode / tag label printing
 - Item photographs
-- Sales reports by day/month, and profit reporting
+- Photo/OCR stock intake
 - Multiple branches and stock transfers
 - Per-customer credit limits and ageing
 - LAN multi-till
-- Automatic off-site backup
