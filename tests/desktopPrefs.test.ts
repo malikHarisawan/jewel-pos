@@ -10,6 +10,12 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { openDatabase, type DB } from '../src/main/db/connection.js';
 import { getSettings, updateSettings } from '../src/main/services/settingsService.js';
 import { LATEST_VERSION } from '../src/main/db/migrations/index.js';
+/* Imported at module load, not inside the tests. A dynamic import() of the
+ * handlers pulls in every service behind the API, and on a cold cache under a
+ * parallel run that transform occasionally took longer than the 5s per-test
+ * timeout — a flake that said "timed out" while the code under test was fine.
+ * Paying it once here keeps the cost outside the test timer. */
+import { handlers } from '../src/main/ipc/handlers.js';
 
 let db: DB;
 
@@ -71,7 +77,6 @@ describe('settings.update pushes desktop prefs to the host', () => {
   }
 
   it('hands the host booleans and the shop name', async () => {
-    const { handlers } = await import('../src/main/ipc/handlers.js');
     const seen: unknown[] = [];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await handlers['settings.update'](ctxWith(seen) as any, {
@@ -84,7 +89,6 @@ describe('settings.update pushes desktop prefs to the host', () => {
   });
 
   it('does not crash when the host has no desktop (the HTTP harness)', async () => {
-    const { handlers } = await import('../src/main/ipc/handlers.js');
     const bare = {
       db,
       auth: { requireSession: () => ({ userId: 1, role: 'OWNER' as const }) },

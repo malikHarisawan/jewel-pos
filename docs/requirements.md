@@ -1,4 +1,4 @@
-# Jewel POS — Functional Requirements (v1.0.0)
+# Jewel POS — Functional Requirements (v1.2.0)
 
 Offline-first inventory and point-of-sale for a Pakistani jewellery shop.
 Single PC, no internet required, no server.
@@ -205,6 +205,11 @@ Status of every requirement below is one of:
 | 11b.3 | The headline shows the profit that IS known rather than zero | Done |
 | 11b.4 | Dead stock past a chosen age, most valuable first, with cash locked up | Done |
 | 11b.5 | Profit is owner-only; dead stock is owner/manager | Done |
+| 11b.6 | Purchase rate, labour and other costs are recorded per piece | Done |
+| 11b.7 | The spreadsheet importer reads purchase-rate and labour columns | Done |
+| 11b.8 | An unsupplied cost stays unknown, never becomes zero | Done |
+| 11b.9 | One rate per purity backfills a catalogue that predates the field | Done |
+| 11b.10 | Backfill never overwrites a rate entered by hand | Done |
 
 ## 11c. Labels
 

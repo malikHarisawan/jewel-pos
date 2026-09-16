@@ -1,6 +1,6 @@
 {
   "name": "jewel-pos",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Offline-first jewellery shop inventory & POS (Pakistan)",
   "main": "out/main/index.cjs",
   "scripts": {

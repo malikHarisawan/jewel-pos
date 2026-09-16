@@ -1,4 +1,4 @@
-# Jewel POS 1.1.0 — Handover
+# Jewel POS 1.2.0 — Handover
 
 Two parts: what the **shop** needs to know, and what **you** (the vendor) need
 to keep.
@@ -9,7 +9,7 @@ to keep.
 
 ## Installing
 
-1. Double-click **`Jewel POS Setup 1.1.0.exe`**.
+1. Double-click **`Jewel POS Setup 1.2.0.exe`**.
 2. Windows may show a blue "Windows protected your PC" box. Click
    **More info → Run anyway**. (This appears because the installer is not yet
    code-signed. It is safe; see Part B if you want it gone.)
@@ -135,8 +135,24 @@ bill compared against the rate the piece came in at.
 
 > If a piece has no purchase rate recorded, the app says so and leaves that part
 > out rather than guessing. The heading reads **"Profit so far"** when some bills
-> are still missing their cost. Add a purchase rate on those pieces to complete
-> the picture.
+> are still missing their cost.
+
+**Where the purchase rate comes from.** On *Items*, the **"What it cost you"**
+box takes the metal rate you paid per gram, plus any labour and other costs.
+Only the owner sees it. If your stock came in from a spreadsheet, a column named
+*Purchase rate*, *Cost price*, *Kharid* (and similar) is picked up automatically.
+
+**If your catalogue is already loaded without it**, do not edit hundreds of items
+by hand. On the Reports screen, click **Fix this** next to the warning: pick a
+purity, give the rate you were paying around the time you bought that stock, and
+every piece of that purity without a rate gets it.
+
+That is an estimate and the app says so — but an approximate cost makes the gold
+figure roughly right, where no cost leaves it blank forever. **A rate you typed
+on an item by hand is never overwritten.**
+
+> Leave the rate empty rather than putting `0`. Zero means "bought free", which
+> would report the whole sale price as profit.
 
 **Money asleep on the shelf.** Everything that has not moved in 90 days, 6 months
 or a year — most valuable first — and how much cash is tied up in it.
@@ -224,9 +240,9 @@ The code only works on that one PC.
 
 ```
 npm ci
-npm run verify      # typecheck + lint + 352 tests
+npm run verify      # typecheck + lint + 361 tests
 npm run smoke       # drives the real app, walks every screen, writes screenshots
-npm run dist        # -> dist/Jewel POS Setup 1.1.0.exe
+npm run dist        # -> dist/Jewel POS Setup 1.2.0.exe
 ```
 
 ### The two videos
@@ -279,7 +295,7 @@ Send the printed code to the shop.
 ## Testing a build
 
 Launch `dist\win-unpacked\Jewel POS.exe`, or silent-install with
-`"Jewel POS Setup 1.1.0.exe" /S /D=C:\some\path`.
+`"Jewel POS Setup 1.2.0.exe" /S /D=C:\some\path`.
 
 A booted app leaves proof in `%APPDATA%\jewel-pos\`: `data\shop.db` plus a
 `pre-migration` backup. If that folder is missing, the app did not start.
