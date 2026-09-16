@@ -12,6 +12,7 @@
   "nav.rates": "Rates",
   "nav.pos": "Sale",
   "nav.karigar": "Karigar",
+  "nav.reports": "Reports",
   "nav.settings": "Settings",
   "dashboard.welcome": "Welcome, {{name}}",
   "dash.todaysRates": "Today's rates",
