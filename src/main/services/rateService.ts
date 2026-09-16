@@ -8,7 +8,12 @@
  */
 import type { DB } from '../db/connection.js';
 import { withAudit } from '../db/audit.js';
-import { normalizeRateToPaisaPerGram, type RateBasis } from '../../shared/units/index.js';
+import {
+  normalizeRateToPaisaPerGram,
+  deriveRateByFineness,
+  rateDeltaBp,
+  type RateBasis,
+} from '../../shared/units/index.js';
 import { priceSaleLine, type TaxConfig } from '../../shared/pricing/engine.js';
 import type { z } from 'zod';
 import type {
@@ -264,4 +269,179 @@ export function quoteWeight(db: DB, itemId: number, netMg: number) {
     settingsTaxConfig(db),
   );
   return { itemId, hasRate: true, ratePaisaPerGram, totalPaisa: b.lineTotalPaisa };
+}
+
+// ---- morning rate board ----------------------------------------------------
+
+/**
+ * What the owner needs to post today's rates in one action.
+ *
+ * The daily rate post is the one chore that freezes the whole app when it is
+ * skipped ("No rate set for purity…"), so this gathers everything the morning
+ * card needs in a single call: which purities are stale, what was posted last,
+ * and what each purity would become if 24K were posted at a given figure.
+ */
+export interface MorningBoardPurity {
+  purityId: number;
+  label: string;
+  metalId: number;
+  metalName: string;
+  finenessMillesimal: number;
+  /** Last posted rate, or null if this purity has never had one. */
+  lastRatePaisaPerGram: number | null;
+  lastEffectiveAt: string | null;
+  /** True when the last post is from an earlier day than today (shop-local). */
+  isStale: boolean;
+}
+
+/** The purity a derivation is anchored on: highest-fineness active gold. */
+function basisPurityId(rows: MorningBoardPurity[]): number | null {
+  const gold = rows.filter((r) => r.metalName.toLowerCase() === 'gold');
+  if (gold.length === 0) return null;
+  return gold.reduce((best, r) =>
+    r.finenessMillesimal > best.finenessMillesimal ? r : best,
+  ).purityId;
+}
+
+function localDayKey(iso: string, offsetMinutes: number): string {
+  const t = new Date(iso).getTime() - offsetMinutes * 60_000;
+  return new Date(t).toISOString().slice(0, 10);
+}
+
+/**
+ * Today's rate board with staleness worked out.
+ *
+ * `tzOffsetMinutes` is the renderer's own UTC offset (minutes, as returned by
+ * `Date.prototype.getTimezoneOffset`). Staleness is a shop-local question — a
+ * rate posted at 9am local is today's rate — and the main process may not share
+ * the till's timezone, so the caller supplies it rather than assuming UTC.
+ */
+export function morningBoard(db: DB, tzOffsetMinutes = 0) {
+  const rows = db
+    .prepare(
+      `SELECT p.id AS purity_id, p.label, p.metal_id, p.fineness_millesimal,
+              m.name AS metal_name,
+              lr.rate_paisa_per_gram, lr.effective_at
+       FROM purities p
+       JOIN metals m ON m.id = p.metal_id
+       LEFT JOIN (
+         SELECT purity_id, rate_paisa_per_gram, effective_at
+         FROM metal_rates
+         WHERE id IN (SELECT MAX(id) FROM metal_rates GROUP BY purity_id)
+       ) lr ON lr.purity_id = p.id
+       WHERE p.is_active = 1
+       ORDER BY m.id, p.sort_order`,
+    )
+    .all() as Array<{
+    purity_id: number;
+    label: string;
+    metal_id: number;
+    fineness_millesimal: number;
+    metal_name: string;
+    rate_paisa_per_gram: number | null;
+    effective_at: string | null;
+  }>;
+
+  const today = localDayKey(new Date().toISOString(), tzOffsetMinutes);
+
+  const purities: MorningBoardPurity[] = rows.map((r) => ({
+    purityId: r.purity_id,
+    label: r.label,
+    metalId: r.metal_id,
+    metalName: r.metal_name,
+    finenessMillesimal: r.fineness_millesimal,
+    lastRatePaisaPerGram: r.rate_paisa_per_gram,
+    lastEffectiveAt: r.effective_at,
+    isStale:
+      r.effective_at == null || localDayKey(r.effective_at, tzOffsetMinutes) !== today,
+  }));
+
+  const settings = db.prepare('SELECT key, value FROM app_settings').all() as Array<{
+    key: string;
+    value: string;
+  }>;
+  const get = (k: string, d: string) => settings.find((s) => s.key === k)?.value ?? d;
+
+  return {
+    purities,
+    basisPurityId: basisPurityId(purities),
+    derivePurities: get('rate_derive_purities', '1') === '1',
+    jumpWarnBp: Number(get('rate_jump_warn_bp', '500')),
+    /**
+     * True when a purity the shop actually trades in has no rate for today.
+     *
+     * "Actually trades in" means it has been priced at least once: a fresh
+     * install ships silver and platinum active, and a gold-only shop must not
+     * be nagged every morning about metals it has never sold. A purity that has
+     * never had a rate is only counted on a shop that has posted nothing at all
+     * — otherwise the very first morning would look already done.
+     */
+    needsPosting: (() => {
+      const everPriced = purities.filter((p) => p.lastRatePaisaPerGram !== null);
+      if (everPriced.length === 0) return true;
+      return everPriced.some((p) => p.isStale);
+    })(),
+  };
+}
+
+/** One purity's posting instruction inside a batch. */
+export interface PostRateLine {
+  purityId: number;
+  enteredValuePaisa: number;
+  enteredBasis: RateBasis;
+}
+
+/**
+ * Post several purities as one action — what the morning card submits.
+ *
+ * Wrapped in a single transaction so a shop never ends up with 24K posted and
+ * 22K missing: either the whole board moves or none of it does. Each line still
+ * goes through the same append-only INSERT and the same audit record as a
+ * single manual post, so a derived rate is indistinguishable from a typed one
+ * in the history — which is correct, because it IS a real posted rate.
+ */
+export function postRates(db: DB, userId: number, lines: PostRateLine[]) {
+  if (lines.length === 0) return [];
+  const run = db.transaction(() => lines.map((l) => enterRate(db, userId, l)));
+  return run();
+}
+
+/**
+ * Work out what the whole board becomes if `basisPurityId` is posted at
+ * `enteredValuePaisa`, without writing anything.
+ *
+ * The card previews this so the owner sees all four figures before confirming.
+ * Gold purities follow the basis by fineness ratio; other metals are left alone
+ * (silver does not track the gold rate).
+ */
+export function previewDerivedRates(
+  db: DB,
+  basisPurityId: number,
+  enteredValuePaisa: number,
+  enteredBasis: RateBasis,
+) {
+  const board = morningBoard(db);
+  const basis = board.purities.find((p) => p.purityId === basisPurityId);
+  if (!basis) throw new Error(`purity ${basisPurityId} not found or inactive`);
+
+  const basisPerGram = normalizeRateToPaisaPerGram(enteredValuePaisa, enteredBasis, tolaMg(db));
+
+  return board.purities
+    .filter((p) => p.purityId === basisPurityId || p.metalName === basis.metalName)
+    .map((p) => {
+      const ratePaisaPerGram =
+        p.purityId === basisPurityId
+          ? basisPerGram
+          : deriveRateByFineness(basisPerGram, basis.finenessMillesimal, p.finenessMillesimal);
+      return {
+        purityId: p.purityId,
+        label: p.label,
+        finenessMillesimal: p.finenessMillesimal,
+        ratePaisaPerGram,
+        isBasis: p.purityId === basisPurityId,
+        /** How far this moves from what was last posted, in bp. */
+        deltaBp: rateDeltaBp(p.lastRatePaisaPerGram, ratePaisaPerGram),
+        lastRatePaisaPerGram: p.lastRatePaisaPerGram,
+      };
+    });
 }

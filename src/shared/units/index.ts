@@ -110,3 +110,39 @@ export function normalizeRateToPaisaPerGram(
     }
   }
 }
+
+// ---- purity derivation ----------------------------------------------------
+
+/**
+ * Derive one purity's rate from another's, by fineness ratio.
+ *
+ * The bazaar quotes 24K; 22K/21K/18K follow it proportionally, so posting one
+ * number can fill the whole board. Pure integer arithmetic on paisa-per-gram,
+ * rounded once — a derived rate is a real posted rate and must be exactly
+ * reproducible.
+ *
+ * `from` and `to` are millesimal fineness (999, 916, 875, 750).
+ */
+export function deriveRateByFineness(
+  ratePaisaPerGram: number,
+  fromFineness: number,
+  toFineness: number,
+): number {
+  if (fromFineness <= 0 || toFineness <= 0) {
+    throw new Error('deriveRateByFineness: fineness must be positive');
+  }
+  return roundHalfUp(ratePaisaPerGram * toFineness, fromFineness);
+}
+
+/**
+ * How far `next` moves from `prev`, in basis points of `prev`.
+ *
+ * Used to catch a fat-fingered rate before it prices a sale (an extra zero is
+ * a 900% jump). Returns 0 when there is no previous rate to compare against,
+ * so a shop's very first post is never flagged.
+ */
+export function rateDeltaBp(prevPaisaPerGram: number | null, nextPaisaPerGram: number): number {
+  if (prevPaisaPerGram == null || prevPaisaPerGram <= 0) return 0;
+  const diff = Math.abs(nextPaisaPerGram - prevPaisaPerGram);
+  return Math.round((diff * BP_DENOM) / prevPaisaPerGram);
+}
