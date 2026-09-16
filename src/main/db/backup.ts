@@ -38,18 +38,36 @@ export async function backupNow(
 
   await db.backup(file);
 
-  const check = new Database(file, { readonly: true });
-  try {
-    const res = check.pragma('integrity_check', { simple: true }) as string;
-    if (res !== 'ok') {
-      check.close();
-      unlinkSync(file);
-      return { path: file, ok: false };
-    }
-  } finally {
-    check.close();
+  if (!verifyDatabaseFile(file)) {
+    unlinkSync(file);
+    return { path: file, ok: false };
   }
   return { path: file, ok: true };
+}
+
+/**
+ * True when `file` opens as a SQLite database and passes its integrity check.
+ *
+ * A corrupt or truncated file does not come back as a failing check — opening
+ * it or running the pragma THROWS ("file is not a database"). Treating only the
+ * non-'ok' return as failure would let a junk file escape as an exception and,
+ * worse, leave it on disk looking like a usable backup. Both outcomes are
+ * failures and are reported the same way.
+ */
+function verifyDatabaseFile(file: string): boolean {
+  let check: Database.Database | undefined;
+  try {
+    check = new Database(file, { readonly: true });
+    return (check.pragma('integrity_check', { simple: true }) as string) === 'ok';
+  } catch {
+    return false;
+  } finally {
+    try {
+      check?.close();
+    } catch {
+      // Closing a handle that never fully opened is not itself a failure.
+    }
+  }
 }
 
 /**
@@ -145,4 +163,73 @@ export function restoreBackup(
   }
 
   return { restoredFrom: safeName, safetyCopy: basename(safety) };
+}
+
+/**
+ * Copy a verified backup to a second location — a USB stick, or a folder that a
+ * cloud client (Drive, Dropbox, OneDrive) syncs.
+ *
+ * A shop's entire book living on one PC in one shop is the fear that sells this
+ * feature, so the job here is narrow and reliable: take a backup that has
+ * already passed its integrity check and put a copy somewhere the fire and the
+ * thief are not. Nothing here creates a backup; it only mirrors a good one.
+ *
+ * Failure is never fatal to the caller. A missing USB stick is the normal case
+ * — the drive is unplugged most of the time — so this reports and moves on
+ * rather than turning a successful local backup into an error.
+ */
+export interface OffsiteResult {
+  ok: boolean;
+  path: string | null;
+  reason: string | null;
+}
+
+export function copyBackupOffsite(sourcePath: string, destDir: string): OffsiteResult {
+  if (!destDir.trim()) return { ok: false, path: null, reason: 'No off-site folder set.' };
+  if (!existsSync(sourcePath)) {
+    return { ok: false, path: null, reason: 'The backup file is missing.' };
+  }
+  try {
+    mkdirSync(destDir, { recursive: true });
+    const dest = join(destDir, basename(sourcePath));
+    copyFileSync(sourcePath, dest);
+    // Verify the copy independently. A truncated write to a removable drive is
+    // exactly the failure this feature exists to protect against, and a corrupt
+    // off-site copy that reports success is worse than none at all.
+    if (!verifyDatabaseFile(dest)) {
+      try {
+        unlinkSync(dest);
+      } catch {
+        // Best effort: a file we cannot delete is still reported as a failure.
+      }
+      return { ok: false, path: null, reason: 'The copy did not verify and was discarded.' };
+    }
+    return { ok: true, path: dest, reason: null };
+  } catch (err) {
+    // Unplugged drive, full disk, permissions: all normal, none fatal.
+    return {
+      ok: false,
+      path: null,
+      reason: err instanceof Error ? err.message : 'Could not write to that folder.',
+    };
+  }
+}
+
+/** Keep only the newest `keep` off-site copies, so a USB stick cannot fill up. */
+export function rotateOffsite(destDir: string, keep = 14): string[] {
+  if (!existsSync(destDir)) return [];
+  const removed: string[] = [];
+  const files = readdirSync(destDir)
+    .filter((f) => f.endsWith('.db'))
+    .map((f) => ({ f, t: statSync(join(destDir, f)).mtimeMs }))
+    .sort((a, b) => b.t - a.t);
+  for (const { f } of files.slice(keep)) {
+    try {
+      unlinkSync(join(destDir, f));
+      removed.push(f);
+    } catch {
+      // A locked file on a removable drive is not worth failing a backup over.
+    }
+  }
+  return removed;
 }
