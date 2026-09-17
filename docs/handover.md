@@ -9,7 +9,7 @@ to keep.
 
 ## Installing
 
-1. Double-click **`Jewel POS Setup 1.2.0.exe`**.
+1. Double-click **`Jewel-POS-Setup-1.2.0.exe`**.
 2. Windows may show a blue "Windows protected your PC" box. Click
    **More info → Run anyway**. (This appears because the installer is not yet
    code-signed. It is safe; see Part B if you want it gone.)
@@ -242,7 +242,7 @@ The code only works on that one PC.
 npm ci
 npm run verify      # typecheck + lint + 363 tests
 npm run smoke       # drives the real app, walks every screen, writes screenshots
-npm run dist        # -> dist/Jewel POS Setup 1.2.0.exe
+npm run dist        # -> dist/Jewel-POS-Setup-1.2.0.exe
 ```
 
 ### The two videos
@@ -302,7 +302,7 @@ Send the printed code to the shop.
 ## Testing a build
 
 Launch `dist\win-unpacked\Jewel POS.exe`, or silent-install with
-`"Jewel POS Setup 1.2.0.exe" /S /D=C:\some\path`.
+`Jewel-POS-Setup-1.2.0.exe /S /D=C:\some\path`.
 
 A booted app leaves proof in `%APPDATA%\jewel-pos\`: `data\shop.db` plus a
 `pre-migration` backup. If that folder is missing, the app did not start.
@@ -325,26 +325,69 @@ win:
   certificatePassword: ...   # better: set CSC_LINK / CSC_KEY_PASSWORD env vars
 ```
 
-## Enabling auto-update
+## Auto-update
 
-Currently **off by design**. `electron-builder.yml` still points at
-`https://example.com/updates/`, and `src/main/updater.ts` treats that as "no
-channel configured" so it never fires pointless requests on an offline shop PC.
+**On**, pointed at this repo's GitHub Releases:
 
-To turn it on:
-1. Put a real HTTPS host in the `publish.url` of `electron-builder.yml`.
-2. `npm run dist` and upload the contents of `dist/` (including `latest.yml`)
-   to that URL.
+```yaml
+publish:
+  provider: github
+  owner: malikHarisawan
+  repo: jewel-pos
+```
 
-Updates then download quietly and install **when the shop closes the app** —
-never mid-sale.
+A shop checks the release feed on launch, downloads quietly in the background,
+and installs **when the app is closed** — never mid-sale. An unreachable feed is
+normal for an offline counter: `src/main/updater.ts` logs it and moves on rather
+than showing a dialog nobody behind the counter can act on.
+
+**A build alone reaches nobody.** Shops only see a version once a release is
+*published* — a draft, or an .exe sitting in `dist/`, is invisible to them. See
+*Shipping an update* below.
+
+The feed is validated before use (`isRealFeed`, covered in `tests/updater.test.ts`):
+the old `example.com` placeholder, `localhost`, and plain `http` are all
+rejected — an installer fetched over a connection anyone can tamper with is
+worse than no update at all.
+
+### Moving off GitHub later
+
+Swap the block for a generic host and upload `dist/` contents after each build:
+
+```yaml
+publish:
+  provider: generic
+  url: https://your-host/updates/
+```
+
+The URL must be HTTPS or the updater will refuse it.
 
 ## Shipping an update
 
-Bump `version` in `package.json`, rebuild, ship. Migrations run automatically on
-first launch, and a `pre-migration` backup is taken and verified **before** the
-schema changes. If that backup fails its integrity check the upgrade aborts and
-the old database is left untouched.
+```
+# 1. bump "version" in package.json, then
+npm run verify
+npm run dist
+
+# 2. publish — this is the step that actually reaches shops
+gh release create v1.3.0 \
+  dist/Jewel-POS-Setup-1.3.0.exe \
+  dist/latest.yml \
+  --title "Jewel POS 1.3.0" \
+  --notes "What changed, in the shop's words."
+```
+
+`latest.yml` is what the updater reads, so **upload it with the .exe** — an
+installer published without it is invisible to every shop.
+
+Existing shops pick the update up on their next launch and install it when they
+close the app. Migrations run automatically on first launch, and a
+`pre-migration` backup is taken and verified **before** the schema changes. If
+that backup fails its integrity check the upgrade aborts and the old database is
+left untouched.
+
+To stage a release without shipping it, add `--draft` and publish when ready —
+a draft is not served to shops.
 
 ## Where the shop's data lives
 

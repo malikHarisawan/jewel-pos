@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { isRealFeed } from '../src/main/updater.js';
 
 /**
@@ -58,5 +59,33 @@ describe('the shipped publish config', () => {
   it('names the repository releases are published to', () => {
     expect(yml).toMatch(/owner:\s*malikHarisawan/);
     expect(yml).toMatch(/repo:\s*jewel-pos/);
+  });
+
+  it('names the installer without spaces', () => {
+    // GitHub rewrites spaces in asset URLs, so electron-builder writes the
+    // hyphenated name into latest.yml while the file on disk keeps its spaces.
+    // The updater then fetches a name that does not exist and every shop's
+    // update 404s — silently, because an unreachable feed is normal for an
+    // offline counter and is only logged.
+    expect(yml).toMatch(/artifactName:\s*Jewel-POS-Setup-\$\{version\}\.\$\{ext\}/);
+  });
+});
+
+/**
+ * The built artifacts, when a build is present.
+ *
+ * Skipped on a clean checkout rather than failing: `dist/` is gitignored and CI
+ * runs the suite without building. When it IS there, the name latest.yml points
+ * at must exist, because that is the exact mismatch that breaks updates.
+ */
+describe('the built release, if one exists', () => {
+  const latestYml = 'dist/latest.yml';
+  const built = existsSync(latestYml);
+
+  it.skipIf(!built)('ships the installer latest.yml names', () => {
+    const meta = readFileSync(latestYml, 'utf8');
+    const named = /^path:\s*(.+)$/m.exec(meta)?.[1]?.trim();
+    expect(named).toBeTruthy();
+    expect(existsSync(join('dist', named!))).toBe(true);
   });
 });

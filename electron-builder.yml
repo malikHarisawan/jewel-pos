@@ -25,6 +25,12 @@ win:
   # until one is bought. Left explicit so it is a decision, not an oversight.
   signAndEditExecutable: true
 nsis:
+  # Hyphens, not the spaced product name. GitHub rewrites spaces in asset
+  # URLs, so electron-builder writes the hyphenated form into latest.yml while
+  # the file on disk kept its spaces — every shop's update download would then
+  # 404 on a name that does not exist. Naming the artifact this way makes the
+  # file, latest.yml and the uploaded asset agree.
+  artifactName: Jewel-POS-Setup-${version}.${ext}
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
@@ -46,7 +52,7 @@ nsis:
 #
 # An update only reaches shops once a release is PUBLISHED. Building alone
 # publishes nothing, so a draft or an unreleased build is invisible to them:
-#   gh release create v<version> "dist/Jewel POS Setup <version>.exe" dist/latest.yml
+#   gh release create v<version> dist/Jewel-POS-Setup-<version>.exe dist/latest.yml
 publish:
   provider: github
   owner: malikHarisawan
