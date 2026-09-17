@@ -240,7 +240,7 @@ The code only works on that one PC.
 
 ```
 npm ci
-npm run verify      # typecheck + lint + 361 tests
+npm run verify      # typecheck + lint + 363 tests
 npm run smoke       # drives the real app, walks every screen, writes screenshots
 npm run dist        # -> dist/Jewel POS Setup 1.2.0.exe
 ```
@@ -254,8 +254,15 @@ npm run demo:setup   # -> docs/demo/jewel-pos-setup.webm   day one, from an empt
 
 Both drive the real application, so a UI change dates them — re-record and the
 video is current again. `demo:setup` starts from an *unseeded* shop and walks
-what a new owner actually does: first sign-in, the forced PIN change, shop
-details, posting a rate, importing stock from a spreadsheet, the first sale.
+what a new owner actually does: first sign-in, the forced PIN change, the
+four-question setup card, the morning rate card, importing stock from a
+spreadsheet, the first sale.
+
+The tour ends on **Reports**, the screen that sells the app — the only one
+showing something the shop could not have worked out for itself. For that to
+land, the demo seed records a purchase rate on every seeded piece: with no cost
+basis the profit report correctly reads "no purchase rates recorded yet", and
+the tour would be showcasing a blank.
 
 It checks itself against the sandbox database afterwards and exits non-zero if
 a narrated step left no rows behind — a caption is only this script's own
