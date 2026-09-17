@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { openDatabase, type DB } from '../src/main/db/connection.js';
 import { createItem } from '../src/main/services/itemService.js';
-import { enterRate } from '../src/main/services/rateService.js';
+import { enterRate, morningBoard } from '../src/main/services/rateService.js';
 import { setupStatus, applySetup } from '../src/main/services/setupService.js';
 import { getSettings } from '../src/main/services/settingsService.js';
 import { CreateItemInput } from '../src/shared/contracts/index.js';
@@ -164,5 +164,36 @@ describe('applySetup', () => {
       db.prepare('SELECT COUNT(*) AS n FROM purities WHERE is_active = 1').get() as { n: number }
     ).n;
     expect(n).toBeGreaterThan(1);
+  });
+});
+
+describe('setup and the morning rate card', () => {
+  it('a fresh shop is due both, so the card must know to wait', () => {
+    // The rate card keys its own visibility off this: on a brand-new shop both
+    // the wizard and the card qualify to open, and stacked dialogs left the
+    // card's text swallowing clicks meant for the wizard beneath it. The
+    // wizard also decides which purities exist, so rates posted before it
+    // finishes would price purities the shop is about to switch off.
+    const s = setupStatus(db);
+    expect(s.completed).toBe(false);
+    expect(s.remaining).toContain('SHOP_DETAILS');
+    expect(morningBoard(db).needsPosting).toBe(true);
+  });
+
+  it('hands over to the card once the wizard is done', () => {
+    applySetup(db, 1, {
+      shopName: 'Al-Madina Jewellers',
+      shopPhone: '',
+      shopAddress: '',
+      chargesTax: false,
+      taxRateBp: 0,
+      activePurityIds: [purity(db, '22K / 916')],
+    });
+
+    const s = setupStatus(db);
+    expect(s.completed).toBe(true);
+    expect(s.remaining).not.toContain('SHOP_DETAILS');
+    // Still unpriced, so the card is now the thing that should open.
+    expect(morningBoard(db).needsPosting).toBe(true);
   });
 });

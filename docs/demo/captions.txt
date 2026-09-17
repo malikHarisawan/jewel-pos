@@ -1,20 +1,25 @@
-    1.3s   Sign in with your username and PIN
-    8.7s   On first run the shop must replace the PIN it was shipped with
-     16s   The dashboard: today's rate, stock on hand, and what it is worth
-   19.8s   Post the day's gold rate. Every price follows from it
-   23.1s   Nothing is sold at a stored price — the rate drives every figure
-   25.7s   Stock, priced live at the rate you just posted
-   28.8s   Weight, purity and making charge per piece — no price is ever typed in
-     32s   Ringing up a sale
-   34.8s   Scan a tag, or type the item name
-   40.1s   The bill builds itself: metal + making + wastage, at today’s rate
-   43.5s   Take the payment
-     45s   Complete the sale — the receipt prints and stock drops by one
-   48.1s   The receipt, ready for the customer
-   52.2s   Every finalised bill, searchable by day
-     56s   A bill is never edited. A return is posted against it instead
-     59s   Udhaar: who owes the shop, and what they have paid
-   62.1s   Balances are built from an append-only ledger — every figure is explainable
-   65.5s   Shop name, tax, rounding, staff and backups
-   68.5s   Backups run automatically — on close, and before any upgrade
-   71.7s   Jewel POS — offline, on one PC, with an audited trail
+    1.8s   Sign in with your username and PIN
+    9.3s   On first run the shop must replace the PIN it was shipped with
+   16.6s   The dashboard: today's rate, stock on hand, and what it is worth
+   20.4s   Post the day's gold rate. Every price follows from it
+   23.7s   Nothing is sold at a stored price — the rate drives every figure
+   26.3s   Stock, priced live at the rate you just posted
+   29.4s   Weight, purity and making charge per piece — no price is ever typed in
+   32.6s   Ringing up a sale
+   35.3s   Scan a tag, or type the item name
+   40.8s   The bill builds itself: metal + making + wastage, at today’s rate
+   44.2s   Take the payment
+   45.6s   Complete the sale — the receipt prints and stock drops by one
+   48.8s   The receipt, ready for the customer
+   52.8s   Every finalised bill, searchable by day
+   56.6s   A bill is never edited. A return is posted against it instead
+   59.7s   Udhaar: who owes the shop, and what they have paid
+   62.8s   Balances are built from an append-only ledger — every figure is explainable
+   66.2s   What the books know that the counter cannot see
+   69.5s   Profit split two ways: what you earned, and what the gold itself did
+   73.1s   That second figure needs the rate on the bill against the rate you paid
+   76.5s   No notebook can work that out. The app has kept both all along
+   79.9s   And what is not selling — ranked by the cash asleep in it
+   83.3s   Shop name, tax, rounding, staff and backups
+   86.4s   Backups run automatically — on close, and before any upgrade
+   89.6s   Jewel POS — offline, on one PC, with an audited trail

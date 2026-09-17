@@ -1,30 +1,32 @@
-    1.2s  Your first sign-in. The app ships with one account: owner / 1234
-    9.5s  The app now insists you pick your own PIN — 1234 is printed in the manual
-   14.9s  Choose something only you know. There is no back door if you forget it
-   20.4s  This is a brand-new shop: no rate, no stock, nothing to sell yet
-     24s  Three things to set up — your shop details, today’s rate, then your stock
-   27.4s  Step 1 — Settings. Your shop name prints on every bill
-     39s  Set the idle lock too — the counter returns to sign-in when left alone
-   43.9s  Tax and rounding live here as well. "Gold exempt" is the FBR treatment
-   47.1s  Step 2 — post today’s gold rate. Do this every morning
-   50.2s  Quote it the way your market does — per tola, per gram, or per 10 grams
-     60s  The app converts it to per-gram for you — check the figure, then post
-   65.6s  Nothing is stored as a price. Post a new rate and every item reprices
-   68.8s  Step 3 — your stock. Most shops already have it in Excel
-   74.1s  Import from a spreadsheet — no need to retype hundreds of pieces
-   80.8s  It reads your column names — "Gross Wt", "Net Wt", purity, making charge
-   84.2s  Every row is shown BEFORE anything is saved. Nothing is written yet
-   90.4s  Weights in tola instead of grams? Switch the unit and the preview follows
-   93.4s  A row it cannot read is listed with the reason, and simply skipped
-   96.6s  Happy with the preview? Import — and only now is anything written
-  102.5s  Opening stock is posted at the same time, so your ledger starts balanced
-  105.5s  Your catalogue — imported, and already priced at today’s rate
-    109s  No price was ever typed. Weight, purity and making charge produce it
-  112.6s  You are open for business. Ringing up the first sale
-  115.4s  Scan the tag, or type the name and press Enter
-  120.7s  The bill builds itself — metal, making and wastage at today’s rate
-  124.1s  F9 finishes the sale. The receipt opens, and stock drops by one
-  127.6s  Hand it to the customer, or Ctrl-P to print
-  131.9s  Add your counter staff under Settings — each picks their own PIN
-  134.9s  Backups run on their own: every 4 hours, on close, and before an upgrade
-  138.1s  That is the setup. Post the rate each morning — the rest is selling
+    1.9s  Your first sign-in. The app ships with one account: owner / 1234
+     11s  The app now insists you pick your own PIN — 1234 is printed in the manual
+   16.4s  Choose something only you know. There is no back door if you forget it
+   21.9s  A brand-new shop. The app asks four questions before anything else
+   25.3s  Step 1 — your shop name. This prints at the top of every bill
+   37.7s  Step 2 — tax. Gold is already exempt, the FBR treatment
+   43.2s  Step 3 — which gold you deal in. Skip what you never sell
+   47.9s  Each one you keep is a rate you post every morning — so pick honestly
+   53.3s  That is the setup. Everything else already ships set the way shops want it
+   60.1s  Now the rate. Nothing can be priced or sold until today’s is posted
+   63.5s  Quote it the way your market does — per tola, per gram, or per 10 grams
+     71s  The whole board fills from this one figure — check it, then post
+   77.8s  One number, one tap, every morning. That is the whole daily chore
+     81s  Nothing is stored as a price. Post a new rate and every item reprices
+   84.3s  Now your stock. Most shops already have it in Excel
+     90s  Import from a spreadsheet — no need to retype hundreds of pieces
+   96.8s  It reads your column names — "Gross Wt", "Net Wt", purity, making charge
+  100.2s  Every row is shown BEFORE anything is saved. Nothing is written yet
+  106.5s  Weights in tola instead of grams? Switch the unit and the preview follows
+  109.5s  A row it cannot read is listed with the reason, and simply skipped
+  112.7s  Happy with the preview? Import — and only now is anything written
+  118.6s  Opening stock is posted at the same time, so your ledger starts balanced
+  121.6s  Your catalogue — imported, and already priced at today’s rate
+  125.1s  No price was ever typed. Weight, purity and making charge produce it
+  128.7s  You are open for business. Ringing up the first sale
+  131.5s  Scan the tag, or type the name and press Enter
+  136.9s  The bill builds itself — metal, making and wastage at today’s rate
+  140.3s  F9 finishes the sale. The receipt opens, and stock drops by one
+    144s  Hand it to the customer, or Ctrl-P to print
+  148.3s  Add your counter staff under Settings — each picks their own PIN
+  151.3s  Backups run on their own: every 4 hours, on close, and before an upgrade
+  154.6s  That is the setup. Post the rate each morning — the rest is selling

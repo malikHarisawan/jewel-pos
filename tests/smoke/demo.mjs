@@ -14,7 +14,14 @@
  * data in %APPDATA%.
  */
 import { _electron as electron } from 'playwright';
-import { mkdirSync, writeFileSync, rmSync, existsSync, readdirSync, renameSync } from 'node:fs';
+import {
+  mkdirSync,
+  writeFileSync,
+  rmSync,
+  readdirSync,
+  renameSync,
+  statSync,
+} from 'node:fs';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
@@ -181,7 +188,21 @@ try {
   say('Balances are built from an append-only ledger — every figure is explainable');
   await beat(3400);
 
-  // ── 8. settings ───────────────────────────────────────────────────────
+  // ── 8. reports — the reason to buy rather than keep the notebook ──────
+  // Everything before this point records what the shopkeeper already knows;
+  // this screen is the only one that tells them something they could not have
+  // worked out, so a tour that skips it undersells the whole product.
+  await goTo('Reports', 'What the books know that the counter cannot see', 3200);
+  say('Profit split two ways: what you earned, and what the gold itself did');
+  await beat(3600);
+  say('That second figure needs the rate on the bill against the rate you paid');
+  await beat(3400);
+  say('No notebook can work that out. The app has kept both all along');
+  await beat(3400);
+  say('And what is not selling — ranked by the cash asleep in it');
+  await beat(3400);
+
+  // ── 9. settings ───────────────────────────────────────────────────────
   await goTo('Settings', 'Shop name, tax, rounding, staff and backups', 3000);
   say('Backups run automatically — on close, and before any upgrade');
   await beat(3200);
@@ -195,16 +216,26 @@ try {
   await app.close().catch(() => {});
 }
 
-// Playwright names the file with a random id; give it something a client can read.
-const webm = readdirSync(OUT).filter((f) => f.endsWith('.webm'));
-const newest = webm
-  .map((f) => ({ f, t: existsSync(join(OUT, f)) ? Date.now() : 0 }))
+// Playwright names the file with a random id; give it something a client can
+// read. The previous recording lives in this folder under the target name, so
+// it must be excluded before picking: including it meant a re-record could
+// choose the old output, delete it, then rename it onto itself (ENOENT).
+// mtime decides among the rest, rather than Date.now() — which returned the
+// same value for every candidate and left "newest" to directory order.
+const TARGET_NAME = 'jewel-pos-demo.webm';
+const target = join(OUT, TARGET_NAME);
+const fresh = readdirSync(OUT)
+  .filter((f) => f.endsWith('.webm') && f !== TARGET_NAME)
+  .map((f) => ({ f, t: statSync(join(OUT, f)).mtimeMs }))
   .sort((a, b) => b.t - a.t)[0];
-if (newest) {
-  const target = join(OUT, 'jewel-pos-demo.webm');
+if (fresh) {
   rmSync(target, { force: true });
-  renameSync(join(OUT, newest.f), target);
-  console.log(`\n  video    : ${target}`);
+  renameSync(join(OUT, fresh.f), target);
+  console.log(`
+  video    : ${target}`);
+} else {
+  console.error('\n  no recording was produced — the previous video is unchanged');
+  process.exitCode = 1;
 }
 
 writeFileSync(

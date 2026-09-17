@@ -1,85 +1,105 @@
 {
   "captions": [
     {
-      "at": 1.3,
+      "at": 1.8,
       "text": "Sign in with your username and PIN"
     },
     {
-      "at": 8.7,
+      "at": 9.3,
       "text": "On first run the shop must replace the PIN it was shipped with"
     },
     {
-      "at": 16,
+      "at": 16.6,
       "text": "The dashboard: today's rate, stock on hand, and what it is worth"
     },
     {
-      "at": 19.8,
+      "at": 20.4,
       "text": "Post the day's gold rate. Every price follows from it"
     },
     {
-      "at": 23.1,
+      "at": 23.7,
       "text": "Nothing is sold at a stored price — the rate drives every figure"
     },
     {
-      "at": 25.7,
+      "at": 26.3,
       "text": "Stock, priced live at the rate you just posted"
     },
     {
-      "at": 28.8,
+      "at": 29.4,
       "text": "Weight, purity and making charge per piece — no price is ever typed in"
     },
     {
-      "at": 32,
+      "at": 32.6,
       "text": "Ringing up a sale"
     },
     {
-      "at": 34.8,
+      "at": 35.3,
       "text": "Scan a tag, or type the item name"
     },
     {
-      "at": 40.1,
+      "at": 40.8,
       "text": "The bill builds itself: metal + making + wastage, at today’s rate"
     },
     {
-      "at": 43.5,
+      "at": 44.2,
       "text": "Take the payment"
     },
     {
-      "at": 45,
+      "at": 45.6,
       "text": "Complete the sale — the receipt prints and stock drops by one"
     },
     {
-      "at": 48.1,
+      "at": 48.8,
       "text": "The receipt, ready for the customer"
     },
     {
-      "at": 52.2,
+      "at": 52.8,
       "text": "Every finalised bill, searchable by day"
     },
     {
-      "at": 56,
+      "at": 56.6,
       "text": "A bill is never edited. A return is posted against it instead"
     },
     {
-      "at": 59,
+      "at": 59.7,
       "text": "Udhaar: who owes the shop, and what they have paid"
     },
     {
-      "at": 62.1,
+      "at": 62.8,
       "text": "Balances are built from an append-only ledger — every figure is explainable"
     },
     {
-      "at": 65.5,
+      "at": 66.2,
+      "text": "What the books know that the counter cannot see"
+    },
+    {
+      "at": 69.5,
+      "text": "Profit split two ways: what you earned, and what the gold itself did"
+    },
+    {
+      "at": 73.1,
+      "text": "That second figure needs the rate on the bill against the rate you paid"
+    },
+    {
+      "at": 76.5,
+      "text": "No notebook can work that out. The app has kept both all along"
+    },
+    {
+      "at": 79.9,
+      "text": "And what is not selling — ranked by the cash asleep in it"
+    },
+    {
+      "at": 83.3,
       "text": "Shop name, tax, rounding, staff and backups"
     },
     {
-      "at": 68.5,
+      "at": 86.4,
       "text": "Backups run automatically — on close, and before any upgrade"
     },
     {
-      "at": 71.7,
+      "at": 89.6,
       "text": "Jewel POS — offline, on one PC, with an audited trail"
     }
   ],
-  "recorded": "2026-09-05T10:10:09.064Z"
+  "recorded": "2026-09-17T05:28:22.287Z"
 }

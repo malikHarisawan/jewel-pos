@@ -107,6 +107,34 @@ export async function runDemo(FILE = ':memory:'): Promise<{ pass: string[]; fail
   }
   check('8 items created with opening stock', items.length === 8);
 
+  // ── what the stock cost to buy ─────────────────────────────────────────
+  // Without this the profit report has no cost basis and shows "no purchase
+  // rates recorded yet" — so the demo shop would showcase the one feature
+  // that sells the app by displaying a blank. These are set a few percent
+  // under today's counter rates, which is what a shop that bought its stock
+  // some weeks ago would actually have paid.
+  const PURCHASE_RATE_PER_GRAM: Record<number, number> = {
+    [p22]: 25_100,
+    [p21]: 23_950,
+    [pSilver]: 298,
+  };
+  const setCost = db.prepare(
+    `INSERT INTO item_costs (item_id, intake_rate_paisa_per_gram, updated_by)
+     VALUES (?,?,?)
+     ON CONFLICT(item_id) DO UPDATE SET intake_rate_paisa_per_gram = excluded.intake_rate_paisa_per_gram`,
+  );
+  items.forEach((itemId, i) => {
+    const purityId = STOCK[i][2];
+    const paid = PURCHASE_RATE_PER_GRAM[purityId];
+    if (paid) setCost.run(itemId, paid * RS, owner);
+  });
+  check(
+    'purchase rates recorded, so profit has a cost basis',
+    (db.prepare(
+      `SELECT COUNT(*) c FROM item_costs WHERE intake_rate_paisa_per_gram IS NOT NULL`,
+    ).get() as { c: number }).c === items.length,
+  );
+
   // ── customers ──────────────────────────────────────────────────────────
   const cust = (name: string, phone: string) =>
     createParty(db, owner, { kind: 'CUSTOMER', name, phone }).id;

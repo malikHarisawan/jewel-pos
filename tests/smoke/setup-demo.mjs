@@ -146,80 +146,127 @@ try {
     await beat(3000);
   }
 
-  // ── 3. an empty shop ──────────────────────────────────────────────────
-  say('This is a brand-new shop: no rate, no stock, nothing to sell yet');
-  await beat(3600);
-  say('Three things to set up — your shop details, today’s rate, then your stock');
+  // ── 3. the setup card, which opens by itself ──────────────────────────
+  // This replaced a walk through Settings. The old video narrated "three
+  // things to set up" and typed the shop name into a Settings field; a new
+  // shop is now asked four questions before it can reach any screen, so a
+  // recording that navigates instead of answering them would be describing
+  // software that no longer exists.
+  say('A brand-new shop. The app asks four questions before anything else');
   await beat(3400);
 
-  // ── 4. shop details ───────────────────────────────────────────────────
-  await goTo('Settings', 'Step 1 — Settings. Your shop name prints on every bill', 3200);
-
-  const shopName = win.locator('#shop_name, input#shop_name').first();
-  if (await shopName.count()) {
-    await shopName.scrollIntoViewIfNeeded();
-    await beat(900);
-    await type(shopName, 'Al-Madina Jewellers', 70);
-    await beat(1200);
-    const addr = win.locator('#shop_address, input#shop_address').first();
-    if (await addr.count()) {
-      await type(addr, 'Sarafa Bazaar, Lahore', 55);
-      await beat(900);
-    }
-    const phone = win.locator('#shop_phone, input#shop_phone').first();
-    if (await phone.count()) {
-      await type(phone, '0300-1234567', 70);
-      await beat(1000);
-    }
-    say('Set the idle lock too — the counter returns to sign-in when left alone');
+  const wiz = win.locator('.ant-modal').filter({ hasText: 'shop called' }).first();
+  if (await wiz.count()) {
+    say('Step 1 — your shop name. This prints at the top of every bill');
     await beat(2600);
-    await tryClick(win.locator('button:has-text("Save")').first(), 'save shop');
+    await type(wiz.locator('input').nth(0), 'Al-Madina Jewellers', 70);
+    await beat(900);
+    await type(wiz.locator('input').nth(1), '0300-1234567', 70);
+    await beat(800);
+    await type(wiz.locator('input').nth(2), 'Sarafa Bazaar, Lahore', 55);
+    await beat(1300);
+    await tryClick(win.locator('.ant-modal button:has-text("Next")').first(), 'wizard next 1');
     await beat(2200);
-  }
 
-  say('Tax and rounding live here as well. "Gold exempt" is the FBR treatment');
-  await beat(3200);
+    say('Step 2 — tax. Gold is already exempt, the FBR treatment');
+    await beat(3200);
+    await tryClick(win.locator('.ant-modal button:has-text("Next")').first(), 'wizard next 2');
+    await beat(2200);
 
-  // ── 5. the rate — nothing prices without it ───────────────────────────
-  await goTo('Rates', 'Step 2 — post today’s gold rate. Do this every morning', 3000);
-  say('Quote it the way your market does — per tola, per gram, or per 10 grams');
-  await beat(3000);
-
-  // antd v6 renders .ant-select (there is no .ant-select-selector), and this
-  // screen has two: [0] filters the history, [1] is the entry form. Take the
-  // last, or the rate is never entered and the walk silently posts nothing.
-  const puritySel = win.locator('.ant-select').last();
-  if (await tryClick(puritySel, 'purity dropdown')) {
-    await beat(1400);
-    // 22K is what the sample sheet is priced in, so the imported stock values.
-    const opt = win.locator('.ant-select-item-option').filter({ hasText: '22K' }).first();
-    const fallback = win.locator('.ant-select-item-option').first();
-    if (!(await tryClick(opt, '22K option'))) await tryClick(fallback, 'first purity');
-    await beat(1400);
-  }
-
-  // The radio itself is hidden — the segmented control is drawn by its label,
-  // so click the label. (Clicking the input times out on "not visible".)
-  await tryClick(win.locator('.seg-opt').filter({ hasText: 'tola' }).first(), 'per-tola');
-  await beat(1200);
-
-  const rateField = win.locator('input[placeholder="300,000"]').first();
-  if (await rateField.count()) {
-    await type(rateField, '357000', 130);
-    await beat(1600);
-    say('The app converts it to per-gram for you — check the figure, then post');
-    await beat(2800);
+    say('Step 3 — which gold you deal in. Skip what you never sell');
+    await beat(3000);
+    // Each purity kept is another rate the owner must post every morning, so
+    // the video picks one deliberately rather than ticking everything.
     await tryClick(
-      win.locator('button:has-text("Save rate"), button.btn-primary').first(),
-      'post rate',
+      win.locator('.ant-modal label').filter({ hasText: '22K' }).first(),
+      '22K purity',
     );
-    await beat(2800);
+    await beat(1600);
+    say('Each one you keep is a rate you post every morning — so pick honestly');
+    await beat(3000);
+    await tryClick(win.locator('.ant-modal button:has-text("Next")').first(), 'wizard next 3');
+    await beat(2400);
+
+    say('That is the setup. Everything else already ships set the way shops want it');
+    await beat(3400);
+    await tryClick(
+      win.locator('.ant-modal button:has-text("Start selling")').first(),
+      'finish wizard',
+    );
+    await beat(3200);
+  }
+
+  // ── 4. the morning rate card ──────────────────────────────────────────
+  // It opens on its own once the wizard closes, because no rate is posted.
+  // Nothing in the app prices without one, which is exactly why this is the
+  // second thing a new owner sees rather than a screen they must remember.
+  // The card mounts a moment after the wizard closes — it waits on the setup
+  // status before deciding to open. Counting immediately races that and drops
+  // into the fallback while the card is still arriving, so wait for it.
+  const card = win.locator('.ant-modal').filter({ hasText: 'Post today' }).first();
+  let cardOpened = false;
+  try {
+    await card.waitFor({ state: 'visible', timeout: 12_000 });
+    cardOpened = true;
+  } catch {
+    console.log('  (rate card did not open — using the Rates screen)');
+  }
+  if (cardOpened) {
+    say('Now the rate. Nothing can be priced or sold until today’s is posted');
+    await beat(3400);
+    say('Quote it the way your market does — per tola, per gram, or per 10 grams');
+    await beat(3000);
+    await tryClick(
+      win.locator('.ant-modal .seg-opt').filter({ hasText: 'tola' }).first(),
+      'per-tola',
+    );
+    await beat(1200);
+
+    const cardRate = win.locator('.ant-modal input.jp-num').first();
+    if (await cardRate.count()) {
+      await type(cardRate, '357000', 130);
+      await beat(2000);
+    }
+    // Deliberately not "22K, 21K and 18K follow": this shop told the wizard it
+    // deals in one purity, so there is nothing to derive and the board shows a
+    // single row. Narrating the multi-purity case over a one-row card would be
+    // describing a different shop — the check below is what caught it.
+    say('The whole board fills from this one figure — check it, then post');
+    await beat(3600);
+    await tryClick(
+      win.locator('.ant-modal button.btn-primary').first(),
+      'post rates',
+    );
+    await beat(3000);
+    say('One number, one tap, every morning. That is the whole daily chore');
+    await beat(3200);
+  } else {
+    // The card is the expected path; if it did not open, post on the Rates
+    // screen so the recording still shows a priced shop rather than stopping.
+    await goTo('Rates', 'Post today’s gold rate — nothing prices without it', 3000);
+    const puritySel = win.locator('.ant-select').last();
+    if (await tryClick(puritySel, 'purity dropdown')) {
+      await beat(1400);
+      const opt = win.locator('.ant-select-item-option').filter({ hasText: '22K' }).first();
+      const fallback = win.locator('.ant-select-item-option').first();
+      if (!(await tryClick(opt, '22K option'))) await tryClick(fallback, 'first purity');
+      await beat(1400);
+    }
+    await tryClick(win.locator('.seg-opt').filter({ hasText: 'tola' }).first(), 'per-tola');
+    await beat(1200);
+    const rateField = win.locator('input[placeholder="300,000"]').first();
+    if (await rateField.count()) {
+      await type(rateField, '357000', 130);
+      await beat(1600);
+      await tryClick(win.locator('button.btn-primary').first(), 'post rate');
+      await beat(2800);
+    }
   }
   say('Nothing is stored as a price. Post a new rate and every item reprices');
   await beat(3200);
 
   // ── 6. the catalogue, straight off a spreadsheet ──────────────────────
-  await goTo('Settings', 'Step 3 — your stock. Most shops already have it in Excel', 3000);
+  await goTo('Settings', 'Now your stock. Most shops already have it in Excel', 3000);
 
   const importPanel = win.locator('.jp-panel').filter({ hasText: 'spreadsheet' }).first();
   if (await importPanel.count()) {
@@ -341,6 +388,31 @@ try {
   expect('opening stock posted', count('stock_movements'), 1);
   expect('rate posted', count('metal_rates'), 1);
   expect('sale recorded', count('documents'), 1);
+
+  // The walk now narrates two things the old one could not, so both are
+  // checked rather than taken on the caption's word.
+  const shopName = db
+    .prepare(`SELECT value FROM app_settings WHERE key='shop_name'`)
+    .get()?.value;
+  expect(
+    'wizard saved the shop name',
+    shopName && shopName !== 'My Jewellers' ? 1 : 0,
+    1,
+  );
+  // Every GOLD purity the shop kept must be priced by that one post — the
+  // claim the card actually makes. Silver and platinum ship active and this
+  // shop has never traded them, so the card deliberately does not demand
+  // rates for them; asserting over every metal fails on correct behaviour.
+  const unpricedGold = db
+    .prepare(
+      `SELECT COUNT(*) c FROM purities p
+       JOIN metals m ON m.id = p.metal_id
+       WHERE p.is_active = 1 AND m.name = 'Gold'
+         AND NOT EXISTS (SELECT 1 FROM metal_rates r WHERE r.purity_id = p.id)`,
+    )
+    .get().c;
+  expect('every gold purity kept is priced by one post', unpricedGold === 0 ? 1 : 0, 1);
+
   db.close();
 } catch (e) {
   console.log('  ! could not verify the sandbox:', e.message);

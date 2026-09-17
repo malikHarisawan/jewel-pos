@@ -54,6 +54,20 @@ export function MorningRateCard() {
     queryFn: () => api['rates.morningBoard']({ tzOffsetMinutes: new Date().getTimezoneOffset() }),
     enabled: canPost,
   });
+
+  /* A brand-new shop is due a rate AND due the setup wizard, and both would
+     open at once — two stacked dialogs, with this card's text swallowing
+     clicks meant for the wizard's fields underneath. The wizard goes first:
+     it decides which purities exist, so posting rates before it finishes
+     would price purities the shop is about to switch off. */
+  const setup = useQuery({
+    queryKey: ['setup', 'status'],
+    queryFn: () => api['setup.status']({}),
+    enabled: canPost,
+  });
+  const setupPending =
+    setup.isLoading ||
+    (!!setup.data && !setup.data.completed && setup.data.remaining.includes('SHOP_DETAILS'));
   const settings = useQuery({ queryKey: ['settings'], queryFn: () => api['settings.get']({}) });
 
   /* The suggestion is fetched only when the card is actually going to open, so
@@ -62,7 +76,7 @@ export function MorningRateCard() {
   const suggestion = useQuery({
     queryKey: ['rates', 'suggestion'],
     queryFn: () => api['rates.suggestion']({}),
-    enabled: canPost && needsPosting,
+    enabled: canPost && needsPosting && !setupPending,
     retry: false,
     staleTime: 10 * 60 * 1000,
   });
@@ -153,7 +167,7 @@ export function MorningRateCard() {
     );
   };
 
-  const open = canPost && needsPosting && !dismissed && !board.isLoading;
+  const open = canPost && needsPosting && !dismissed && !board.isLoading && !setupPending;
   if (!open) return null;
 
   const note = suggestion.data?.unavailableReason
