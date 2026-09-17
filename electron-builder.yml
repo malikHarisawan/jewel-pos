@@ -37,8 +37,17 @@ nsis:
   installerIcon: resources/icon.ico
   uninstallerIcon: resources/icon.ico
   installerHeaderIcon: resources/icon.ico
-# electron-updater feed. Auto-update stays OFF until this is a real host —
-# src/main/updater.ts treats example.com as "no channel configured".
+# electron-updater feed: GitHub Releases on the project repo.
+#
+# A shop polls the release feed, downloads quietly in the background, and
+# installs when the app is CLOSED — never mid-sale. See src/main/updater.ts,
+# which also no-ops on an unreachable feed so an offline counter never sees an
+# error it cannot act on.
+#
+# An update only reaches shops once a release is PUBLISHED. Building alone
+# publishes nothing, so a draft or an unreleased build is invisible to them:
+#   gh release create v<version> "dist/Jewel POS Setup <version>.exe" dist/latest.yml
 publish:
-  provider: generic
-  url: https://example.com/updates/
+  provider: github
+  owner: malikHarisawan
+  repo: jewel-pos

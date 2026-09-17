@@ -25,22 +25,38 @@ function updater(): typeof electronUpdater.autoUpdater {
   return electronUpdater.autoUpdater;
 }
 
-/** The placeholder shipped in electron-builder.yml. Treated as "no feed". */
+/** Placeholder hosts that mean "no feed", whatever the config says. */
 const PLACEHOLDER_HOSTS = ['example.com', 'localhost'];
 
 /**
- * Whether a usable update feed is configured. Without this guard the updater
- * would fire a request at example.com on every boot of an offline shop PC and
- * log a failure the shopkeeper cannot act on.
+ * Whether `feed` is somewhere real updates could come from.
+ *
+ * Exported for tests: this one predicate decides whether a shop ever receives
+ * an update, and getting it wrong is silent in both directions — a false
+ * negative means nobody is ever updated, a false positive means every offline
+ * counter logs a failed request on each boot.
+ *
+ * Plain HTTP is rejected along with the placeholders. An installer fetched
+ * over a connection anyone can tamper with is worse than no update at all,
+ * and electron-updater would otherwise happily use it.
  */
+export function isRealFeed(feed: string | null | undefined): boolean {
+  if (!feed) return false;
+  try {
+    const url = new URL(feed);
+    if (url.protocol !== 'https:') return false;
+    return !PLACEHOLDER_HOSTS.includes(url.hostname);
+  } catch {
+    // An unparseable feed is nothing to talk to.
+    return false;
+  }
+}
+
 function hasRealFeed(): boolean {
   try {
-    const feed = updater().getFeedURL();
-    if (!feed) return false;
-    const host = new URL(feed).hostname;
-    return !PLACEHOLDER_HOSTS.includes(host);
+    return isRealFeed(updater().getFeedURL());
   } catch {
-    // No feed configured, or an unparseable one: either way, nothing to talk to.
+    // getFeedURL throws when no publish config was compiled in at all.
     return false;
   }
 }
