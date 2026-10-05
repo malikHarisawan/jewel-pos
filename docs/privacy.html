@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy · Jewel POS</title>
+<meta name="description" content="How Jewel POS handles your shop's data and your Google Drive.">
+<style>
+  :root { --bg: #f6eee2; --card: #fffaf3; --text: #3a2317; --muted: #6f5646; --accent: #c4703a; --line: #e7d8c3; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.7 "Segoe UI", system-ui, -apple-system, sans-serif; }
+  header { background: var(--text); color: #f6eee2; padding: 32px 16px; }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  header a { color: #e9d6c0; text-decoration: none; font-size: .95rem; }
+  h1 { margin: 8px 0 4px; font-size: 1.9rem; }
+  header p { margin: 0; color: #e9d6c0; }
+  main { padding: 24px 16px 48px; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px 24px; margin-bottom: 16px; }
+  h2 { margin: 0 0 8px; font-size: 1.15rem; }
+  h3 { margin: 16px 0 4px; font-size: 1rem; }
+  p { margin: 0 0 10px; }
+  p:last-child { margin-bottom: 0; }
+  ul { margin: 0 0 10px; padding-left: 1.2em; }
+  li { margin: 4px 0; }
+  a { color: var(--accent); overflow-wrap: anywhere; }
+  code { background: #f1e4d2; padding: 1px 6px; border-radius: 6px; font-size: .92em; overflow-wrap: anywhere; }
+  footer { color: var(--muted); font-size: .9rem; text-align: center; padding: 0 16px 36px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a href="./">← Jewel POS</a>
+    <h1>Privacy Policy</h1>
+    <p>Effective 5 October 2026</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <section>
+    <h2>In short</h2>
+    <ul>
+      <li>Jewel POS keeps your shop's records on your own computer.</li>
+      <li>We, the makers of Jewel POS, have no server that receives your data. We never see it.</li>
+      <li>No analytics, no tracking, no advertising.</li>
+      <li>If you connect Google Drive, backups go from your computer straight to <strong>your own</strong> Drive. The app can only see the files it made itself.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Who we are</h2>
+    <p>Jewel POS is stock and billing software for jewellery shops in Pakistan. Contact: <a href="mailto:malikharisawan06@gmail.com">malikharisawan06@gmail.com</a>.</p>
+  </section>
+
+  <section>
+    <h2>The data the app keeps</h2>
+    <p>Everything you enter (stock, gold rates, bills, customers and their phone numbers, udhaar, karigar jobs, expenses, old-gold purchase records with the seller's CNIC details and pictures, staff accounts) is stored in a database on the computer where Jewel POS is installed, in <code>%APPDATA%\jewel-pos</code>. Backups are kept in the same place.</p>
+    <p>This data is not sent to us. You control it completely: you can copy it, back it up, or delete it. Uninstalling the app leaves the folder in place on purpose. To remove the data, delete that folder.</p>
+  </section>
+
+  <section>
+    <h2>When the app uses the internet</h2>
+    <p>Jewel POS works fully offline. It only goes online for the following:</p>
+    <ul>
+      <li><strong>Update checks.</strong> The app asks GitHub whether a newer version exists, and downloads it only when you ask. No shop data is sent. GitHub sees your internet address, as it would for any website visit.</li>
+      <li><strong>Suggested gold rate</strong> (off unless you turn it on). The app asks the rate provider you choose, using your own key, for today's rate. No shop data is sent. A suggestion is never used until you confirm it.</li>
+      <li><strong>Google Drive backup</strong> (off unless you connect it). Explained in full below.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Google Drive backup</h2>
+    <h3>What the app can access</h3>
+    <p>When you press <em>Connect Google Drive</em>, Google asks you to allow one permission: <code>drive.file</code>. With it, Jewel POS can only see and change <strong>files that Jewel POS itself created</strong> in your Drive. It cannot see, open, change or delete any other file in your Google Drive.</p>
+    <p>The app also reads the email address of the Google account you connected, only to show you which account your backups are going to.</p>
+
+    <h3>How the app uses it</h3>
+    <ul>
+      <li>It makes a folder called <em>Jewel POS Backups</em> in your Drive.</li>
+      <li>Once a day, at the time you choose, it uploads a backup copy of your shop's database into that folder. You can also send one by hand.</li>
+      <li>It checks that each upload arrived complete and unchanged, and removes one that did not.</li>
+      <li>It keeps the newest 30 backups it made and deletes older ones it made. It never touches anything else.</li>
+    </ul>
+
+    <h3>Where your Google data is kept</h3>
+    <p>The backup files are stored in your own Google Drive, under your Google account. The sign-in that lets the app upload them is stored only on your computer, encrypted by Windows for your Windows user account. It is never sent to us or to anyone else.</p>
+
+    <h3>Sharing</h3>
+    <p>We do not receive, store, share, sell or transfer any data from your Google account. Uploads go directly from your computer to Google. Your Google data is not used for advertising, and not used to train any AI or machine-learning model.</p>
+
+    <h3>Turning it off</h3>
+    <p>Press <em>Disconnect</em> in Jewel POS (<em>Settings → Backups → Google Drive</em>), or remove Jewel POS from your Google account at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. Either one stops the uploads. Backups already in your Drive stay there until you delete them yourself.</p>
+
+    <h3>Google API Services User Data Policy</h3>
+    <p>Jewel POS's use and transfer to any other app of information received from Google APIs will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
+  </section>
+
+  <section>
+    <h2>Children</h2>
+    <p>Jewel POS is business software for shops. It is not meant for children.</p>
+  </section>
+
+  <section>
+    <h2>Changes to this policy</h2>
+    <p>If this policy changes, the new version will be posted on this page with a new date.</p>
+  </section>
+
+  <section>
+    <h2>Contact</h2>
+    <p>Questions about this policy or your data: <a href="mailto:malikharisawan06@gmail.com">malikharisawan06@gmail.com</a></p>
+  </section>
+</main>
+
+<footer>Jewel POS · <a href="./">Home</a></footer>
+</body>
+</html>
